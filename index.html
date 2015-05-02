@@ -4,7 +4,7 @@
     <head>
         <meta charset="utf-8">
 
-        <title>Metaprogramming: a paradigm shift</title>
+        <title>C++ metaprogramming: a paradigm shift</title>
 
         <meta name="author" content="Louis Dionne">
 
@@ -14,7 +14,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
 
         <link rel="stylesheet" href="css/reveal.css">
-        <link rel="stylesheet" href="css/theme/black.css" id="theme">
+        <link rel="stylesheet" href="css/theme/league.css" id="theme">
         <link rel="stylesheet" href="css/custom.css">
 
         <!-- Code syntax highlighting -->
@@ -39,19 +39,250 @@
             <div class="slides">
                 <section data-markdown=""
                          data-separator="^====+$"
-                         data-vertical="^----+$"
+                         data-separator-vertical="^----+$"
                          data-notes="^Note:">
                 <script type="text/template">
 
-## Metaprogramming
-<h3 style="opacity: 0.7">a paradigm shift</h3>
+## C++ metaprogramming
+<h3 style="opacity: 0.8">a paradigm shift</h3>
 <br>
 Louis Dionne, C++Now 2015
 
 ====================
 
-## Outline
+### What a cocky title
 
+====================
+
+## Outline
+- What?
+- Why?
+- How?
+
+==============================================================================
+
+## What?
+
+<!-- Define new MathJax commands here to avoid seeing them load on the first slide. -->
+$\newcommand{\cc}[1]{{\tt #1}}$
+
+====================
+
+### What is the MPL?
+
+----
+
+### Metafunctions
+
+$$
+    f : Type \to Type
+$$
+
+where
+
+$$
+    Type := \\{ \text{all types } \cc{T} \\}
+$$
+
+----
+
+### Metafunctions
+
+```cpp
+template <typename T>
+struct f {
+    using type = ...;
+};
+```
+
+----
+
+### For example
+
+$$
+\begin{matrix}
+    \cc{add\\_pointer} : Type \to Type \\\\
+                        \cc{T} \mapsto \cc{T*}
+\end{matrix}
+$$
+
+====================
+
+### What is Fusion?
+
+<!-- TODO: What is it useful for? -->
+
+====================
+
+### What am I proposing?
+
+<!-- TODO: Situate Hana between Fusion/MPL  and the types of computations -->
+
+==============================================================================
+
+## Why?
+### See for yourself
+
+====================
+
+### Loop unrolling: then
+
+```cpp
+__attribute__((noinline)) void f() { }
+
+int main() {
+    #pragma PLZ UNROLL
+    for (int i = 0; i != 10; ++i)
+        f();
+}
+```
+
+----
+
+### Loop unrolling: now
+
+```cpp
+__attribute__((noinline)) void f() { }
+
+int main() {
+    int_<10>.times(f);
+}
+```
+
+----
+
+### Skeptical?
+
+```
+_main:
+    ; snip
+    push    rbp
+    mov rbp, rsp
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    xor eax, eax
+    pop rbp
+    ret
+```
+
+====================
+
+### `tuple_cat`: then
+
+<!-- TODO -->
+
+----
+
+### `tuple_cat`: now
+
+<!-- TODO -->
+
+====================
+
+### `common_type`: then
+
+<!-- TODO -->
+
+----
+
+### `common_type`: now
+
+<!-- TODO -->
+
+====================
+
+### Checking for a member: then
+
+```cpp
+template <typename T, typename = decltype(&T::xxx)>
+static std::true_type has_xxx_impl(int);
+
+template <typename T>
+static std::false_type has_xxx_impl(...);
+
+template <typename T>
+struct has_xxx
+    : decltype(has_xxx_impl<T>(int{}))
+{ };
+
+struct Foo { int xxx; };
+static_assert(has_xxx<Foo>::value, "");
+```
+
+----
+
+### Checking for a member: now
+
+```cpp
+auto has_xxx = is_valid([](auto t) -> decltype(t.xxx) {});
+
+struct Foo { int xxx; };
+static_assert(has_xxx(type<Foo>), "");
+```
+
+====================
+
+### Type safe `printf`: then
+
+<!-- TODO -->
+
+----
+
+### Type safe `printf`: now
+
+<!-- TODO -->
+
+====================
+
+## Still not convinced?
+### Here's more
+
+====================
+
+### Boost.Accumulators: then
+
+<!-- TODO -->
+
+----
+
+### Boost.Accumulators: now
+
+<!-- TODO -->
+
+====================
+
+### Heterogeneous linear algebra: then
+
+<!-- TODO -->
+
+----
+
+### Heterogeneous linear algebra: now
+
+<!-- TODO -->
+
+==============================================================================
+
+## How?
+
+Note:
+Hopefully you are now convinced that there's a better way to write metaprograms.
+Let me try to convince you I found it.
+
+<!--
+TODO:
+- Intuition behind the type/value unification
+    + What is type-level metaprogramming? What are types in that context?
+    + What is value-level metaprogramming? What are types/values in that context?
+-->
 
 ==============================================================================
 

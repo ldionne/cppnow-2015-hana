@@ -9,6 +9,20 @@ cmake_minimum_required(VERSION 3.0)
 find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
+include(ExternalProject)
+ExternalProject_Add(Hana
+    GIT_REPOSITORY https://github.com/ldionne/hana
+    GIT_TAG origin/develop
+    TIMEOUT 10
+    CMAKE_ARGS -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+    PREFIX "${CMAKE_CURRENT_BINARY_DIR}"
+    BUILD_COMMAND ""   # Disable build step
+    INSTALL_COMMAND "" # Disable install step
+    TEST_COMMAND ""    # Disable test step
+)
+ExternalProject_Get_Property(Hana SOURCE_DIR)
+include_directories(${SOURCE_DIR}/include)
+
 
 #=============================================================================
 # Setup compiler flags
@@ -42,6 +56,7 @@ add_executable(sampler sampler/sampler.cpp)
 #=============================================================================
 # Setup code samples
 #=============================================================================
+enable_testing()
 add_custom_target(samples)
 
 file(GLOB CODE_SAMPLES code/*.cpp)
@@ -50,6 +65,7 @@ foreach(_file IN LISTS CODE_SAMPLES)
     string(REPLACE ".cpp" "" _target "${_target}")
     add_executable(sample.${_target} "${_file}")
     add_dependencies(samples sample.${_target})
+    add_test(sample.${_target} sample.${_target})
 endforeach()
 
 
