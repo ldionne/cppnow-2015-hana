@@ -50,7 +50,7 @@ Louis Dionne, C++Now 2015
 
 ====================
 
-### What a cocky title
+### Such a cocky title
 
 ====================
 
@@ -61,67 +61,116 @@ Louis Dionne, C++Now 2015
 
 ==============================================================================
 
-## What?
-
 <!-- Define new MathJax commands here to avoid seeing them load on the first slide. -->
 $\newcommand{\cc}[1]{{\tt #1}}$
 
+## What is the MPL?
+
+----
+
+### Metafunctions
+
+%%what_is_the_mpl-metafunction%%
+
+----
+
+### Sequences (of types)
+
+%%what_is_the_mpl-sequence%%
+
+----
+
+### Algorithms (on sequences of types)
+
+%%what_is_the_mpl-algorithm-front%%
+
+----
+
+### More algorithms
+
+%%what_is_the_mpl-algorithm-transform%%
+
 ====================
 
-### What is the MPL?
+### What is it useful for?
+
+<!-- TODO -->
+
+====================
+
+## What is Fusion?
 
 ----
 
-### Metafunctions
+### Heterogeneous functions
 
-$$
-    f : Type \to Type
-$$
-
-where
-
-$$
-    Type := \\{ \text{all types } \cc{T} \\}
-$$
+%%what_is_fusion-function%%
 
 ----
 
-### Metafunctions
+### Heterogeneous sequences
 
 ```cpp
-template <typename T>
-struct f {
-    using type = ...;
+template <typename ...T>
+struct vector {
+    // essentially a std::tuple
 };
+
+vector<int, long, float> values = {1, 2l, 3.4f};
 ```
 
 ----
 
-### For example
+### Algorithms (on heterogeneous sequences)
 
-$$
-\begin{matrix}
-    \cc{add\\_pointer} : Type \to Type \\\\
-                        \cc{T} \mapsto \cc{T*}
-\end{matrix}
-$$
+```cpp
+template <typename T, typename ...Ts>
+T front(vector<T, Ts...> v) {
+    // ...
+}
+
+vector<int, long, float> values = {1, 2l, 3.4f};
+int one = front(values);
+```
+
+----
+
+### More algorithms
+
+```cpp
+template <typename ...T, typename F>
+auto // <-- depends on the return type of f on each element
+transform(vector<T...> v, F f) {
+    // ...
+}
+
+vector<int, long, float> values = {1, 2l, 3.4f};
+vector<long long, long long, long double> wide_values =
+                            transform(values, widen{});
+```
 
 ====================
 
-### What is Fusion?
+### What is it useful for?
 
-<!-- TODO: What is it useful for? -->
+<!-- TODO -->
 
 ====================
 
-### What am I proposing?
+## What am I proposing?
 
-<!-- TODO: Situate Hana between Fusion/MPL  and the types of computations -->
+<!-- TODO: Locate Hana between Fusion/MPL and the different types of computations -->
 
 ==============================================================================
 
 ## Why?
 ### See for yourself
+
+<!--
+TODO: This should be a short but convincing gattering of patterns that are
+done better by Hana. After showing the examples, explain how C++14 changes
+the game completely, and mandates a complete rethink of metaprogramming.
+-->
 
 ====================
 
@@ -161,51 +210,35 @@ _main:
 
 ====================
 
-### `tuple_cat`: then
-
-<!-- TODO -->
-
-----
-
-### `tuple_cat`: now
-
-<!-- TODO -->
-
-====================
-
-### `common_type`: then
-
-<!-- TODO -->
-
-----
-
-### `common_type`: now
-
-<!-- TODO -->
-
-====================
-
 ### Checking for a member: then
 
 %%checking_for_member-then%%
 
 ----
 
-### Checking for a member: now
+### Checking for a member: soon
 
-%%checking_for_member-now%%
-
-====================
-
-### Type safe `printf`: then
-
-<!-- TODO -->
+%%checking_for_member-soon%%
 
 ----
 
-### Type safe `printf`: now
+### Checking for a member: what it should be
 
-<!-- TODO -->
+%%checking_for_member-should%%
+
+====================
+
+### Sorting at compile-time: then
+
+%%sorting-then%%
+
+<!-- TODO: The code does not fit in one slide -->
+
+----
+
+### Sorting at compile-time: now
+
+%%sorting-now%%
 
 ====================
 
@@ -214,27 +247,17 @@ _main:
 
 ====================
 
-### Boost.Accumulators: then
-
-<!-- TODO -->
-
-----
-
-### Boost.Accumulators: now
-
-<!-- TODO -->
+<!-- TODO: more convincing examples -->
 
 ====================
 
-### Heterogeneous linear algebra: then
+### C++14: a serious game changer
 
-<!-- TODO -->
-
-----
-
-### Heterogeneous linear algebra: now
-
-<!-- TODO -->
+Notes:
+Explain why this is so
+- generalized constexpr
+- variable templates
+- automatically deduced return type
 
 ==============================================================================
 
@@ -251,6 +274,22 @@ TODO:
     + What is value-level metaprogramming? What are types/values in that context?
 -->
 
+====================
+
+### What are types?
+### What are metafunctions?
+
+$$
+    f : Type \to Type
+$$
+
+where
+
+$$
+    Type := \\{ \text{all types } \cc{T} \\}
+$$
+
+
 ==============================================================================
 
 # Thank you
@@ -259,6 +298,84 @@ TODO:
 http://ldionne.com <br>
 http://github.com/ldionne
 </span>
+
+==============================================================================
+
+<!--
+Potential case studies:
+- tuple_cat
+- common_type
+- Heterogeneous linear algebra
+- Boost.Accumulators
+-->
+
+====================
+
+### Type safe `printf`: then
+
+<!-- TODO -->
+
+----
+
+### Type safe `printf`: now
+
+%%type_safe_printf-now1%%
+
+----
+
+### Wrong argument type? No problem
+
+%%type_safe_printf-now-wrong_type%%
+
+```
+type_safe_printf.cpp:49:11: error: static_assert failed
+        "the type of the argument does not match the format character"
+    static_assert(decltype(formats[fmt[1_c]] == just(args[0_c])){},
+    ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[...]
+```
+
+----
+
+### Too few arguments? No problem
+
+%%type_safe_printf-now-too_few_args%%
+
+```
+type_safe_printf.cpp:43:11: error: static_assert failed
+        "too few arguments for the format string"
+    static_assert(decltype(!is_empty(args)){},
+    ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[...]
+```
+
+----
+
+### Too many arguments? No problem
+
+%%type_safe_printf-now-too_many_args%%
+
+```
+type_safe_printf.cpp:58:3: error: static_assert failed
+        "too many arguments for the format string"
+    static_assert(is_empty(remaining_args),
+    ^             ~~~~~~~~~~~~~~~~~~~~~~~~
+[...]
+```
+
+----
+
+### Step 1: Specify format characters
+
+%%type_safe_printf-now2%%
+
+----
+
+### Step 2: Wrap `printf` with type checking
+
+%%type_safe_printf-now3%%
+
+<!-- TODO: make sure the code fits -->
 
                 </script>
                 </section>

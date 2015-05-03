@@ -50,7 +50,7 @@ Louis Dionne, C++Now 2015
 
 ====================
 
-### What a cocky title
+### Such a cocky title
 
 ====================
 
@@ -61,28 +61,10 @@ Louis Dionne, C++Now 2015
 
 ==============================================================================
 
-## What?
-
 <!-- Define new MathJax commands here to avoid seeing them load on the first slide. -->
 $\newcommand{\cc}[1]{{\tt #1}}$
 
-====================
-
-### What is the MPL?
-
-----
-
-### Metafunctions
-
-$$
-    f : Type \to Type
-$$
-
-where
-
-$$
-    Type := \\{ \text{all types } \cc{T} \\}
-$$
+## What is the MPL?
 
 ----
 
@@ -90,38 +72,155 @@ $$
 
 ```cpp
 template <typename T>
-struct f {
-    using type = ...;
+struct add_pointer {
+    using type = T*;
 };
+
+using result = add_pointer<int>::type;
 ```
 
 ----
 
-### For example
+### Sequences (of types)
 
-$$
-\begin{matrix}
-    \cc{add\\_pointer} : Type \to Type \\\\
-                        \cc{T} \mapsto \cc{T*}
-\end{matrix}
-$$
+```cpp
+template <typename ...T>
+struct vector;
+
+using types = vector<int, char, float, void>;
+```
+
+----
+
+### Algorithms (on sequences of types)
+
+```cpp
+template <typename Vector>
+struct front;
+
+template <typename T, typename ...Ts>
+struct front<vector<T, Ts...>> {
+    using type = T;
+};
+
+using types = vector<int, char, float, void>;
+using first = front<types>::type; // int
+```
+
+----
+
+### More algorithms
+
+```cpp
+template <typename Vector, template <typename ...> class Metafunction>
+struct transform;
+
+template <typename ...T, template <typename ...> class Metafunction>
+struct transform<vector<T...>, Metafunction> {
+    using type = vector<typename Metafunction<T>::type...>;
+};
+
+using types = vector<int, char, float, void>;
+using pointers = transform<types, add_pointer>::type;
+// vector<int*, char*, float*, void*>
+```
 
 ====================
 
-### What is Fusion?
+### What is it useful for?
 
-<!-- TODO: What is it useful for? -->
+<!-- TODO -->
 
 ====================
 
-### What am I proposing?
+## What is Fusion?
 
-<!-- TODO: Situate Hana between Fusion/MPL  and the types of computations -->
+----
+
+### Heterogeneous functions
+
+```cpp
+struct widen {
+    long double operator()(long double x) const { return x; }
+    long double operator()(double x) const { return x; }
+    long double operator()(float x) const { return x; }
+
+    long long operator()(int x) const { return x; }
+    long long operator()(long x) const { return x; }
+    long long operator()(long long x) const { return x; }
+
+    // etc...
+};
+
+long double x = widen{}(3.4);
+long long y = widen{}(23);
+```
+
+----
+
+### Heterogeneous sequences
+
+```cpp
+template <typename ...T>
+struct vector {
+    // essentially a std::tuple
+};
+
+vector<int, long, float> values = {1, 2l, 3.4f};
+```
+
+----
+
+### Algorithms (on heterogeneous sequences)
+
+```cpp
+template <typename T, typename ...Ts>
+T front(vector<T, Ts...> v) {
+    // ...
+}
+
+vector<int, long, float> values = {1, 2l, 3.4f};
+int one = front(values);
+```
+
+----
+
+### More algorithms
+
+```cpp
+template <typename ...T, typename F>
+auto // <-- depends on the return type of f on each element
+transform(vector<T...> v, F f) {
+    // ...
+}
+
+vector<int, long, float> values = {1, 2l, 3.4f};
+vector<long long, long long, long double> wide_values =
+                            transform(values, widen{});
+```
+
+====================
+
+### What is it useful for?
+
+<!-- TODO -->
+
+====================
+
+## What am I proposing?
+
+<!-- TODO: Locate Hana between Fusion/MPL and the different types of computations -->
 
 ==============================================================================
 
 ## Why?
 ### See for yourself
+
+<!--
+TODO: This should be a short but convincing gattering of patterns that are
+done better by Hana. After showing the examples, explain how C++14 changes
+the game completely, and mandates a complete rethink of metaprogramming.
+-->
 
 ====================
 
@@ -175,30 +274,6 @@ _main:
 
 ====================
 
-### `tuple_cat`: then
-
-<!-- TODO -->
-
-----
-
-### `tuple_cat`: now
-
-<!-- TODO -->
-
-====================
-
-### `common_type`: then
-
-<!-- TODO -->
-
-----
-
-### `common_type`: now
-
-<!-- TODO -->
-
-====================
-
 ### Checking for a member: then
 
 ```cpp
@@ -219,7 +294,26 @@ static_assert(has_xxx<Foo>::value, "");
 
 ----
 
-### Checking for a member: now
+### Checking for a member: soon
+
+```cpp
+template <typename T, typename = void>
+struct has_xxx
+    : std::false_type
+{ };
+
+template <typename T>
+struct has_xxx<T, std::void_t<decltype(&T::xxx)>>
+    : std::true_type
+{ };
+
+struct Foo { int xxx; };
+static_assert(has_xxx<Foo>::value, "");
+```
+
+----
+
+### Checking for a member: what it should be
 
 ```cpp
 auto has_xxx = is_valid([](auto t) -> decltype(t.xxx) {});
@@ -230,15 +324,72 @@ static_assert(has_xxx(type<Foo>), "");
 
 ====================
 
-### Type safe `printf`: then
+### Sorting at compile-time: then
 
-<!-- TODO -->
+```cpp
+template <typename Sequence, typename Pred>
+struct sort;
+
+template <typename Pred, typename Pivot>
+struct sort_pred {
+  template <typename T>
+  using apply = apply2<Pred, T, Pivot>;
+};
+
+template <typename Sequence, typename Pred>
+struct sort_impl {
+  using pivot = typename begin<Sequence>::type;
+  using parts = typename partition<
+    iterator_range<typename next<pivot>::type,
+                   typename end<Sequence>::type>
+    , protect<sort_pred<Pred, typename deref<pivot>::type>>
+    , back_inserter<vector<>>
+    , back_inserter<vector<>>
+  >::type;
+
+  using part1 = typename push_back<
+    typename sort<typename parts::first, Pred>::type,
+    typename deref<pivot>::type
+  >::type;
+
+  using part2 = typename sort<typename parts::second, Pred>::type;
+
+  using type = typename insert_range<
+    part1, typename end<part1>::type, part2
+  >::type;
+};
+
+template <typename Sequence, typename Pred>
+struct sort
+  : eval_if<empty<Sequence>,
+      identity<Sequence>,
+      sort_impl<Sequence, Pred>
+  >
+{ };
+```
+
+<!-- TODO: The code does not fit in one slide -->
 
 ----
 
-### Type safe `printf`: now
+### Sorting at compile-time: now
 
-<!-- TODO -->
+```cpp
+auto sort = fix([](auto sort, auto xs, auto pred) {
+  return eval_if(length(xs) < size_t<2>,
+    lazy(xs),
+    lazy([=](auto xs) {
+      auto pivot = head(xs);
+      auto rest = tail(xs);
+      auto parts = partition(rest, partial(pred, pivot));
+      return concat(
+        sort(second(parts), pred),
+        prepend(pivot, sort(first(parts), pivot))
+      );
+    })(xs)
+  );
+});
+```
 
 ====================
 
@@ -247,27 +398,17 @@ static_assert(has_xxx(type<Foo>), "");
 
 ====================
 
-### Boost.Accumulators: then
-
-<!-- TODO -->
-
-----
-
-### Boost.Accumulators: now
-
-<!-- TODO -->
+<!-- TODO: more convincing examples -->
 
 ====================
 
-### Heterogeneous linear algebra: then
+### C++14: a serious game changer
 
-<!-- TODO -->
-
-----
-
-### Heterogeneous linear algebra: now
-
-<!-- TODO -->
+Notes:
+Explain why this is so
+- generalized constexpr
+- variable templates
+- automatically deduced return type
 
 ==============================================================================
 
@@ -284,6 +425,22 @@ TODO:
     + What is value-level metaprogramming? What are types/values in that context?
 -->
 
+====================
+
+### What are types?
+### What are metafunctions?
+
+$$
+    f : Type \to Type
+$$
+
+where
+
+$$
+    Type := \\{ \text{all types } \cc{T} \\}
+$$
+
+
 ==============================================================================
 
 # Thank you
@@ -292,6 +449,135 @@ TODO:
 http://ldionne.com <br>
 http://github.com/ldionne
 </span>
+
+==============================================================================
+
+<!--
+Potential case studies:
+- tuple_cat
+- common_type
+- Heterogeneous linear algebra
+- Boost.Accumulators
+-->
+
+====================
+
+### Type safe `printf`: then
+
+<!-- TODO -->
+
+----
+
+### Type safe `printf`: now
+
+```cpp
+type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4, "abcd");
+```
+
+----
+
+### Wrong argument type? No problem
+
+```cpp
+type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 2, "abcd");
+```
+
+```
+type_safe_printf.cpp:49:11: error: static_assert failed
+        "the type of the argument does not match the format character"
+    static_assert(decltype(formats[fmt[1_c]] == just(args[0_c])){},
+    ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[...]
+```
+
+----
+
+### Too few arguments? No problem
+
+```cpp
+type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4);
+```
+
+```
+type_safe_printf.cpp:43:11: error: static_assert failed
+        "too few arguments for the format string"
+    static_assert(decltype(!is_empty(args)){},
+    ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[...]
+```
+
+----
+
+### Too many arguments? No problem
+
+```cpp
+type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4, "abcd", 44);
+```
+
+```
+type_safe_printf.cpp:58:3: error: static_assert failed
+        "too many arguments for the format string"
+    static_assert(is_empty(remaining_args),
+    ^             ~~~~~~~~~~~~~~~~~~~~~~~~
+[...]
+```
+
+----
+
+### Step 1: Specify format characters
+
+```cpp
+auto formats = make_map(
+  make_pair(char_<'i'>, type<int>),
+  make_pair(char_<'f'>, type<double>),
+  make_pair(char_<'s'>, type<char*>)
+
+  // ...
+);
+```
+
+----
+
+### Step 2: Wrap `printf` with type checking
+
+```cpp
+template <typename Fmt, typename ...Args>
+int type_safe_printf(Fmt fmt, Args const& ...args) {
+  static_assert(is_a<String>(fmt),
+  "the format string must be a compile-time hana::String");
+
+  // type-checking is done here, and then we just forward to printf.
+  auto state = until(
+    compose(less.than(size_t<2>), length, first),
+    make_pair(fmt, tuple_t<std::decay_t<Args>...>),
+    fuse([](auto fmt, auto args) {
+      return eval_if(fmt[0_c] != char_<'%'>,
+        [=] { return make_pair(tail(fmt), args); },
+        lazy([](auto fmt, auto args) {
+          static_assert(decltype(!is_empty(args)){},
+          "too few arguments for the format string");
+
+          static_assert(decltype(fmt[1_c] ^in^ formats){},
+          "unsupported format character");
+
+          static_assert(decltype(formats[fmt[1_c]] == just(args[0_c])){},
+          "the type of the argument does not match the format character");
+
+          return make_pair(drop(2_c, fmt), tail(args));
+        })(fmt, args)
+      );
+    }));
+
+  auto remaining_args = second(state);
+  static_assert(is_empty(remaining_args),
+  "too many arguments for the format string");
+
+  return std::printf(to<char const*>(fmt),
+                     static_cast<decltype(args)&&>(args)...);
+};
+```
+
+<!-- TODO: make sure the code fits -->
 
                 </script>
                 </section>

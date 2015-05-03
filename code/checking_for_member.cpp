@@ -25,8 +25,30 @@ static_assert(has_xxx<Foo>::value, "");
 // end-sample
 }
 
-namespace now {
-// sample(checking_for_member-now)
+namespace std {
+    template <typename ...>
+    using void_t = void;
+}
+
+namespace soon {
+// sample(checking_for_member-soon)
+template <typename T, typename = void>
+struct has_xxx
+    : std::false_type
+{ };
+
+template <typename T>
+struct has_xxx<T, std::void_t<decltype(&T::xxx)>>
+    : std::true_type
+{ };
+
+struct Foo { int xxx; };
+static_assert(has_xxx<Foo>::value, "");
+// end-sample
+}
+
+namespace should {
+// sample(checking_for_member-should)
 auto has_xxx = is_valid([](auto t) -> decltype(t.xxx) {});
 
 struct Foo { int xxx; };
