@@ -70,25 +70,25 @@ $\newcommand{\cc}[1]{{\tt #1}}$
 
 ### Metafunctions
 
-%%what_is_the_mpl-metafunction%%
+%%what-mpl-add_pointer%%
 
 ----
 
 ### Sequences (of types)
 
-%%what_is_the_mpl-sequence%%
+%%what-mpl-vector%%
 
 ----
 
 ### Algorithms (on sequences of types)
 
-%%what_is_the_mpl-algorithm-front%%
+%%what-mpl-front%%
 
 ----
 
 ### More algorithms
 
-%%what_is_the_mpl-algorithm-transform%%
+%%what-mpl-transform%%
 
 ====================
 
@@ -104,7 +104,7 @@ $\newcommand{\cc}[1]{{\tt #1}}$
 
 ### Heterogeneous functions
 
-%%what_is_fusion-function%%
+%%what-fusion-widen%%
 
 ----
 
@@ -168,21 +168,20 @@ vector<long long, long long, long double> wide_values =
 
 <!--
 TODO: This should be a short but convincing gattering of patterns that are
-done better by Hana. After showing the examples, explain how C++14 changes
-the game completely, and mandates a complete rethink of metaprogramming.
+done better by Hana.
 -->
 
 ====================
 
 ### Loop unrolling: then
 
-%%loop_unrolling-then%%
+%%why-unrolling-then%%
 
 ----
 
 ### Loop unrolling: now
 
-%%loop_unrolling-now%%
+%%why-unrolling-now%%
 
 ----
 
@@ -212,25 +211,25 @@ _main:
 
 ### Checking for a member: then
 
-%%checking_for_member-then%%
+%%why-member-then%%
 
 ----
 
 ### Checking for a member: soon
 
-%%checking_for_member-soon%%
+%%why-member-soon%%
 
 ----
 
 ### Checking for a member: what it should be
 
-%%checking_for_member-should%%
+%%why-member-should%%
 
 ====================
 
 ### Sorting at compile-time: then
 
-%%sorting-then%%
+%%why-sorting-then%%
 
 <!-- TODO: The code does not fit in one slide -->
 
@@ -238,12 +237,36 @@ _main:
 
 ### Sorting at compile-time: now
 
-%%sorting-now%%
+%%why-sorting-now%%
+
+====================
+
+### Introspection: then
+
+%%why-introspection-then%%
+
+----
+
+### Introspection: now
+
+%%why-introspection-now%%
 
 ====================
 
 ## Still not convinced?
 ### Here's more
+
+====================
+
+### Accessing an element of a tuple: then
+
+%%why-nth-then%%
+
+----
+
+### Accessing an element of a tuple: now
+
+%%why-nth-now%%
 
 ====================
 
@@ -253,42 +276,259 @@ _main:
 
 ### C++14: a serious game changer
 
-Notes:
-Explain why this is so
-- generalized constexpr
-- variable templates
-- automatically deduced return type
+----
+
+### Automatically deduced return type
+
+----
+
+### Generalized constexpr
+
+----
+
+### Generic lambdas
+
+----
+
+### Variable templates
+
+====================
+
+### We must rethink metaprogramming
 
 ==============================================================================
 
-## How?
+## But how?
 
 Note:
 Hopefully you are now convinced that there's a better way to write metaprograms.
 Let me try to convince you I found it.
 
-<!--
-TODO:
-- Intuition behind the type/value unification
-    + What is type-level metaprogramming? What are types in that context?
-    + What is value-level metaprogramming? What are types/values in that context?
--->
-
 ====================
 
 ### What are types?
+
+----
+
+### Aren't they values after all?
+
+```cpp
+using result = add_pointer<int>::type;
+```
+
+----
+
+### Let's treat them as such!
+
+```cpp
+class Type {
+    // ...
+};
+
+Type t = Type{...};
+```
+
+====================
+
 ### What are metafunctions?
 
-$$
-    f : Type \to Type
-$$
+----
 
-where
+### Aren't they functions after all?
 
-$$
-    Type := \\{ \text{all types } \cc{T} \\}
-$$
+```cpp
+template <typename T>
+struct add_pointer {
+    using type = T*;
+};
+```
 
+----
+
+### Let's treat them as such!
+
+```cpp
+Type add_pointer(Type);
+bool is_pointer(Type);
+bool operator==(Type t, Type u);
+// ...
+
+Type t{...};
+Type t_ptr = add_pointer(t);
+assert(is_pointer(t));
+```
+
+====================
+
+### It turns out...
+#### The interface is precisely `<type_traits>`
+
+```cpp
+add_pointer  -> std::add_pointer
+add_const    -> std::add_const
+add_volatile -> std::add_volatile
+// ...
+
+is_pointer   -> std::is_pointer
+is_const     -> std::is_const
+is_volatile  -> std::is_volatile
+// ...
+
+operator==  -> std::is_same
+// ...
+```
+
+----
+
+### Cool idea, but useless for metaprogramming
+
+====================
+
+### Easy fix: use templates
+
+```cpp
+template <typename T>
+class Type {
+  // ...
+};
+
+Type<something> t{};
+```
+
+----
+
+### Templates for functions too
+
+```cpp
+template <typename T>
+Type<unknown-yet> add_pointer(Type<T>);
+
+template <typename T>
+bool is_pointer(Type<T>);
+
+template <typename T, typename U>
+bool operator==(Type<T> t, Type<U> u);
+// ...
+
+Type<something> t{};
+auto t_ptr = add_pointer(t);
+assert(is_pointer(t));
+```
+
+====================
+
+### Possible implementation
+
+<!-- TODO: polish this -->
+
+%%unification_intuition1%%
+
+----
+
+%%unification_intuition2%%
+
+----
+
+%%unification_intuition3%%
+
+====================
+
+### How Hana does it
+
+```cpp
+template <typename T>
+struct _type {
+    // plays the role of Type<T> previously
+};
+
+template <typename T>
+constexpr _type<T> type{};
+
+auto t = type<int>; // just a cool shorthand
+```
+
+====================
+
+### Ok, so we have type -> value
+
+----
+
+### What about value -> type?
+
+```
+auto t = some_type_function(...);
+??? x;
+```
+
+----
+
+### `decltype` baby!
+
+```
+template <typename T>
+struct _type {
+    using type = T;
+};
+
+auto t = some_type_function(...);
+decltype(t)::type x;
+```
+
+====================
+
+### In general, 3 steps
+
+1. Wrap types into `type<...>`
+2. Perform computations
+3. Unwrap with `decltype(...)::type`
+
+----
+
+### Isn't that cumbersome?
+
+1. Only done at some thin boundaries
+2. Not always required
+3. Converting between MPL and Fusion is _way_ more painful
+
+====================
+
+### Example: type safe `printf`
+
+%%how-printf-usage%%
+
+----
+
+### Wrong argument type? No problem
+
+%%how-printf-wrong_type%%
+
+```
+<!-- TODO: show output -->
+```
+
+----
+
+### Wrong number of arguments? No problem
+
+%%how-printf-wrong_narg%%
+
+```
+<!-- TODO: show output -->
+```
+
+----
+
+### Step 1: Specify format characters
+
+%%how-printf-formats%%
+
+----
+
+### Step 2: Wrap `printf` with type checking
+
+%%how-printf-core%%
+
+<!-- TODO: make sure the code fits -->
 
 ==============================================================================
 
@@ -301,81 +541,33 @@ http://github.com/ldionne
 
 ==============================================================================
 
-<!--
-Potential case studies:
+### Misc slides
+
+====================
+
+### Mathematical definition of a metafunction
+
+$$
+\begin{matrix}
+    \cc{add\\_pointer} : Type \to Type                                  \\\\
+                         \cc{T} \mapsto \cc{T*}
+\end{matrix}
+$$
+
+where
+
+$$
+    Type := \\{ \text{all types } \cc{T} \\}
+$$
+
+====================
+
+### Potential case studies:
+
 - tuple_cat
 - common_type
 - Heterogeneous linear algebra
 - Boost.Accumulators
--->
-
-====================
-
-### Type safe `printf`: then
-
-<!-- TODO -->
-
-----
-
-### Type safe `printf`: now
-
-%%type_safe_printf-now1%%
-
-----
-
-### Wrong argument type? No problem
-
-%%type_safe_printf-now-wrong_type%%
-
-```
-type_safe_printf.cpp:49:11: error: static_assert failed
-        "the type of the argument does not match the format character"
-    static_assert(decltype(formats[fmt[1_c]] == just(args[0_c])){},
-    ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[...]
-```
-
-----
-
-### Too few arguments? No problem
-
-%%type_safe_printf-now-too_few_args%%
-
-```
-type_safe_printf.cpp:43:11: error: static_assert failed
-        "too few arguments for the format string"
-    static_assert(decltype(!is_empty(args)){},
-    ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[...]
-```
-
-----
-
-### Too many arguments? No problem
-
-%%type_safe_printf-now-too_many_args%%
-
-```
-type_safe_printf.cpp:58:3: error: static_assert failed
-        "too many arguments for the format string"
-    static_assert(is_empty(remaining_args),
-    ^             ~~~~~~~~~~~~~~~~~~~~~~~~
-[...]
-```
-
-----
-
-### Step 1: Specify format characters
-
-%%type_safe_printf-now2%%
-
-----
-
-### Step 2: Wrap `printf` with type checking
-
-%%type_safe_printf-now3%%
-
-<!-- TODO: make sure the code fits -->
 
                 </script>
                 </section>

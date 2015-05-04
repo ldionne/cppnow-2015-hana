@@ -218,8 +218,7 @@ vector<long long, long long, long double> wide_values =
 
 <!--
 TODO: This should be a short but convincing gattering of patterns that are
-done better by Hana. After showing the examples, explain how C++14 changes
-the game completely, and mandates a complete rethink of metaprogramming.
+done better by Hana.
 -->
 
 ====================
@@ -393,8 +392,71 @@ auto sort = fix([](auto sort, auto xs, auto pred) {
 
 ====================
 
+### Introspection: then
+
+```cpp
+namespace keys {
+    struct name;
+    struct age;
+}
+
+namespace demo { }
+BOOST_FUSION_DEFINE_ASSOC_STRUCT( // must appear at global scope
+    (demo), Person,
+    (std::string, name, keys::name)
+    (int, age, keys::age)
+)
+
+int main() {
+    demo::Person john{"John", 30};
+    std::string name = at_key<keys::name>(john);
+    int age = at_key<keys::age>(john);
+}
+```
+
+----
+
+### Introspection: now
+
+```cpp
+namespace demo {
+    struct Person {
+        BOOST_HANA_DEFINE_STRUCT(Person,
+            (std::string, name),
+            (int, age)
+        );
+    };
+}
+
+int main() {
+    demo::Person john{"John", 30};
+    std::string name = at_key(john, BOOST_HANA_STRING("name"));
+    int age = at_key(john, BOOST_HANA_STRING("age"));
+}
+```
+
+====================
+
 ## Still not convinced?
 ### Here's more
+
+====================
+
+### Accessing an element of a tuple: then
+
+```cpp
+std::tuple<int, char, float> values = {1, 'x', 3.4f};
+char x = std::get<1>(values);
+```
+
+----
+
+### Accessing an element of a tuple: now
+
+```cpp
+hana::_tuple<int, char, float> values = {1, 'x', 3.4f};
+char x = values[1_c];
+```
 
 ====================
 
@@ -404,71 +466,247 @@ auto sort = fix([](auto sort, auto xs, auto pred) {
 
 ### C++14: a serious game changer
 
-Notes:
-Explain why this is so
-- generalized constexpr
-- variable templates
-- automatically deduced return type
+----
+
+### Automatically deduced return type
+
+----
+
+### Generalized constexpr
+
+----
+
+### Generic lambdas
+
+----
+
+### Variable templates
+
+====================
+
+### We must rethink metaprogramming
 
 ==============================================================================
 
-## How?
+## But how?
 
 Note:
 Hopefully you are now convinced that there's a better way to write metaprograms.
 Let me try to convince you I found it.
 
-<!--
-TODO:
-- Intuition behind the type/value unification
-    + What is type-level metaprogramming? What are types in that context?
-    + What is value-level metaprogramming? What are types/values in that context?
--->
-
 ====================
 
 ### What are types?
-### What are metafunctions?
-
-$$
-    f : Type \to Type
-$$
-
-where
-
-$$
-    Type := \\{ \text{all types } \cc{T} \\}
-$$
-
-
-==============================================================================
-
-# Thank you
-
-<span class="fragment fade-in">
-http://ldionne.com <br>
-http://github.com/ldionne
-</span>
-
-==============================================================================
-
-<!--
-Potential case studies:
-- tuple_cat
-- common_type
-- Heterogeneous linear algebra
-- Boost.Accumulators
--->
-
-====================
-
-### Type safe `printf`: then
-
-<!-- TODO -->
 
 ----
 
-### Type safe `printf`: now
+### Aren't they values after all?
+
+```cpp
+using result = add_pointer<int>::type;
+```
+
+----
+
+### Let's treat them as such!
+
+```cpp
+class Type {
+    // ...
+};
+
+Type t = Type{...};
+```
+
+====================
+
+### What are metafunctions?
+
+----
+
+### Aren't they functions after all?
+
+```cpp
+template <typename T>
+struct add_pointer {
+    using type = T*;
+};
+```
+
+----
+
+### Let's treat them as such!
+
+```cpp
+Type add_pointer(Type);
+bool is_pointer(Type);
+bool operator==(Type t, Type u);
+// ...
+
+Type t{...};
+Type t_ptr = add_pointer(t);
+assert(is_pointer(t));
+```
+
+====================
+
+### It turns out...
+#### The interface is precisely `<type_traits>`
+
+```cpp
+add_pointer  -> std::add_pointer
+add_const    -> std::add_const
+add_volatile -> std::add_volatile
+// ...
+
+is_pointer   -> std::is_pointer
+is_const     -> std::is_const
+is_volatile  -> std::is_volatile
+// ...
+
+operator==  -> std::is_same
+// ...
+```
+
+----
+
+### Cool idea, but useless for metaprogramming
+
+====================
+
+### Easy fix: use templates
+
+```cpp
+template <typename T>
+class Type {
+  // ...
+};
+
+Type<something> t{};
+```
+
+----
+
+### Templates for functions too
+
+```cpp
+template <typename T>
+Type<unknown-yet> add_pointer(Type<T>);
+
+template <typename T>
+bool is_pointer(Type<T>);
+
+template <typename T, typename U>
+bool operator==(Type<T> t, Type<U> u);
+// ...
+
+Type<something> t{};
+auto t_ptr = add_pointer(t);
+assert(is_pointer(t));
+```
+
+====================
+
+### Possible implementation
+
+<!-- TODO: polish this -->
+
+```cpp
+template <typename T>
+struct Type {
+    // nothing
+};
+
+template <typename T>
+Type<T*> add_pointer(Type<T>) {
+    return {};
+}
+```
+
+----
+
+```cpp
+template <typename T>
+constexpr bool is_pointer(Type<T>) {
+    return false;
+}
+
+template <typename T>
+constexpr bool is_pointer(Type<T*>) {
+    return true;
+}
+```
+
+----
+
+```cpp
+Type<int> t{};
+auto t_ptr = add_pointer(t);
+static_assert(is_pointer(t_ptr), "");
+```
+
+====================
+
+### How Hana does it
+
+```cpp
+template <typename T>
+struct _type {
+    // plays the role of Type<T> previously
+};
+
+template <typename T>
+constexpr _type<T> type{};
+
+auto t = type<int>; // just a cool shorthand
+```
+
+====================
+
+### Ok, so we have type -> value
+
+----
+
+### What about value -> type?
+
+```
+auto t = some_type_function(...);
+??? x;
+```
+
+----
+
+### `decltype` baby!
+
+```
+template <typename T>
+struct _type {
+    using type = T;
+};
+
+auto t = some_type_function(...);
+decltype(t)::type x;
+```
+
+====================
+
+### In general, 3 steps
+
+1. Wrap types into `type<...>`
+2. Perform computations
+3. Unwrap with `decltype(...)::type`
+
+----
+
+### Isn't that cumbersome?
+
+1. Only done at some thin boundaries
+2. Not always required
+3. Converting between MPL and Fusion is _way_ more painful
+
+====================
+
+### Example: type safe `printf`
 
 ```cpp
 type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4, "abcd");
@@ -483,43 +721,19 @@ type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 2, "abcd");
 ```
 
 ```
-type_safe_printf.cpp:49:11: error: static_assert failed
-        "the type of the argument does not match the format character"
-    static_assert(decltype(formats[fmt[1_c]] == just(args[0_c])){},
-    ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[...]
+<!-- TODO: show output -->
 ```
 
 ----
 
-### Too few arguments? No problem
+### Wrong number of arguments? No problem
 
 ```cpp
 type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4);
 ```
 
 ```
-type_safe_printf.cpp:43:11: error: static_assert failed
-        "too few arguments for the format string"
-    static_assert(decltype(!is_empty(args)){},
-    ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[...]
-```
-
-----
-
-### Too many arguments? No problem
-
-```cpp
-type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4, "abcd", 44);
-```
-
-```
-type_safe_printf.cpp:58:3: error: static_assert failed
-        "too many arguments for the format string"
-    static_assert(is_empty(remaining_args),
-    ^             ~~~~~~~~~~~~~~~~~~~~~~~~
-[...]
+<!-- TODO: show output -->
 ```
 
 ----
@@ -547,37 +761,63 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
   "the format string must be a compile-time hana::String");
 
   // type-checking is done here, and then we just forward to printf.
-  auto state = until(
-    compose(less.than(size_t<2>), length, first),
-    make_pair(fmt, tuple_t<std::decay_t<Args>...>),
-    fuse([](auto fmt, auto args) {
-      return eval_if(fmt[0_c] != char_<'%'>,
-        [=] { return make_pair(tail(fmt), args); },
-        lazy([](auto fmt, auto args) {
-          static_assert(decltype(!is_empty(args)){},
-          "too few arguments for the format string");
+  auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
+    return c ^in^ formats;
+  });
 
-          static_assert(decltype(fmt[1_c] ^in^ formats){},
-          "unsupported format character");
+  static_assert(length(format_chars) == sizeof...(args),
+  "the number of format characters does not match the number of arguments");
 
-          static_assert(decltype(formats[fmt[1_c]] == just(args[0_c])){},
-          "the type of the argument does not match the format character");
+  auto conversions = zip(tuple_t<std::decay_t<Args>...>, format_chars);
+  for_each(conversions, fuse([](auto arg_type, auto format_char) {
+    static_assert(decltype(formats[format_char] == arg_type){},
+    "the type of the argument does not match the format character");
+  }));
 
-          return make_pair(drop(2_c, fmt), tail(args));
-        })(fmt, args)
-      );
-    }));
-
-  auto remaining_args = second(state);
-  static_assert(is_empty(remaining_args),
-  "too many arguments for the format string");
-
-  return std::printf(to<char const*>(fmt),
-                     static_cast<decltype(args)&&>(args)...);
+  return std::printf(to<char const*>(fmt), args...);
 };
 ```
 
 <!-- TODO: make sure the code fits -->
+
+==============================================================================
+
+# Thank you
+
+<span class="fragment fade-in">
+http://ldionne.com <br>
+http://github.com/ldionne
+</span>
+
+==============================================================================
+
+### Misc slides
+
+====================
+
+### Mathematical definition of a metafunction
+
+$$
+\begin{matrix}
+    \cc{add\\_pointer} : Type \to Type                                  \\\\
+                         \cc{T} \mapsto \cc{T*}
+\end{matrix}
+$$
+
+where
+
+$$
+    Type := \\{ \text{all types } \cc{T} \\}
+$$
+
+====================
+
+### Potential case studies:
+
+- tuple_cat
+- common_type
+- Heterogeneous linear algebra
+- Boost.Accumulators
 
                 </script>
                 </section>
