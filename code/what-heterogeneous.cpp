@@ -1,7 +1,7 @@
 // Copyright Louis Dionne 2015
 // Distributed under the Boost Software License, Version 1.0.
 
-// sample(what-fusion-widen)
+// sample(what-heterogeneous-widen)
 struct widen {
     long double operator()(long double x) const { return x; }
     long double operator()(double x) const { return x; }

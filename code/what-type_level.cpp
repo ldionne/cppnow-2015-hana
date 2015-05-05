@@ -1,7 +1,7 @@
 // Copyright Louis Dionne 2015
 // Distributed under the Boost Software License, Version 1.0.
 
-// sample(what-mpl-add_pointer)
+// sample(what-type_level-add_pointer)
 template <typename T>
 struct add_pointer {
     using type = T*;
@@ -10,7 +10,7 @@ struct add_pointer {
 using result = add_pointer<int>::type;
 // end-sample
 
-// sample(what-mpl-vector)
+// sample(what-type_level-vector)
 template <typename ...T>
 struct vector;
 
@@ -19,7 +19,7 @@ using types = vector<int, char, float, void>;
 
 
 namespace ns1 {
-// sample(what-mpl-front)
+// sample(what-type_level-front)
 template <typename Vector>
 struct front;
 
@@ -34,7 +34,7 @@ using first = front<types>::type; // int
 }
 
 namespace ns2 {
-// sample(what-mpl-transform)
+// sample(what-type_level-transform)
 template <typename Vector, template <typename ...> class Metafunction>
 struct transform;
 

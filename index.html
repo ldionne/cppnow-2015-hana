@@ -64,7 +64,7 @@ Louis Dionne, C++Now 2015
 <!-- Define new MathJax commands here to avoid seeing them load on the first slide. -->
 $\newcommand{\cc}[1]{{\tt #1}}$
 
-## What is the MPL?
+## What are type-level computations?
 
 ----
 
@@ -129,11 +129,11 @@ using pointers = transform<types, add_pointer>::type;
 
 ### What is it useful for?
 
-<!-- TODO -->
+<!-- TODO: Find a simple but useful use case -->
 
 ====================
 
-## What is Fusion?
+## What are heterogeneous computations?
 
 ----
 
@@ -203,17 +203,39 @@ vector<long long, long long, long double> wide_values =
 
 ### What is it useful for?
 
-<!-- TODO -->
+<!-- TODO: Find a simple but useful use case -->
 
 ====================
 
-## What am I proposing?
-
-<!-- TODO: Locate Hana between Fusion/MPL and the different types of computations -->
+## What do I propose?
+### Merge both <!-- .element class="fragment" -->
 
 ==============================================================================
 
 ## Why?
+
+====================
+
+### C++14 is a serious game changer
+
+----
+
+### Automatically deduced return type
+
+----
+
+### Generalized constexpr
+
+----
+
+### Generic lambdas
+
+----
+
+### Variable templates
+
+====================
+
 ### See for yourself
 
 <!--
@@ -458,33 +480,11 @@ hana::_tuple<int, char, float> values = {1, 'x', 3.4f};
 char x = values[1_c];
 ```
 
-====================
-
 <!-- TODO: more convincing examples -->
 
 ====================
 
-### C++14: a serious game changer
-
-----
-
-### Automatically deduced return type
-
-----
-
-### Generalized constexpr
-
-----
-
-### Generic lambdas
-
-----
-
-### Variable templates
-
-====================
-
-### We must rethink metaprogramming
+## We must rethink metaprogramming
 
 ==============================================================================
 
@@ -515,7 +515,7 @@ class Type {
     // ...
 };
 
-Type t = Type{...};
+Type t{...};
 ```
 
 ====================
@@ -526,7 +526,7 @@ Type t = Type{...};
 
 ### Aren't they functions after all?
 
-```cpp
+```c++
 template <typename T>
 struct add_pointer {
     using type = T*;
@@ -537,7 +537,7 @@ struct add_pointer {
 
 ### Let's treat them as such!
 
-```cpp
+```c++
 Type add_pointer(Type);
 bool is_pointer(Type);
 bool operator==(Type t, Type u);
@@ -553,7 +553,7 @@ assert(is_pointer(t));
 ### It turns out...
 #### The interface is precisely `<type_traits>`
 
-```cpp
+```c++
 add_pointer  -> std::add_pointer
 add_const    -> std::add_const
 add_volatile -> std::add_volatile
@@ -578,119 +578,80 @@ operator==  -> std::is_same
 
 ```cpp
 template <typename T>
-class Type {
-  // ...
-};
-
-Type<something> t{};
+class Type { /* nothing */ };
 ```
 
 ----
 
-### Templates for functions too
+### Easy fix: use templates
 
 ```cpp
 template <typename T>
-Type<unknown-yet> add_pointer(Type<T>);
+Type<T*> add_pointer(Type<T>) { return {}; }
 
 template <typename T>
-bool is_pointer(Type<T>);
+constexpr bool is_pointer(Type<T>) { return false; }
 
-template <typename T, typename U>
-bool operator==(Type<T> t, Type<U> u);
-// ...
+template <typename T>
+constexpr bool is_pointer(Type<T*>) { return true; }
+```
 
-Type<something> t{};
-auto t_ptr = add_pointer(t);
-assert(is_pointer(t));
+----
+
+### Tadam!
+
+```cpp
+Type<int> i{};
+auto i_ptr = add_pointer(i);
+static_assert(is_pointer(i_ptr), "");
+```
+
+----
+
+### Pass me the sugar, please
+
+```cpp
+template <typename T>
+constexpr Type<T> type{};
+
+auto i = type<int>;
+auto i_ptr = add_pointer(i);
+static_assert(is_pointer(i_ptr), "");
 ```
 
 ====================
 
-### Possible implementation
-
-<!-- TODO: polish this -->
-
-```cpp
-template <typename T>
-struct Type {
-    // nothing
-};
-
-template <typename T>
-Type<T*> add_pointer(Type<T>) {
-    return {};
-}
-```
+### So we can represent types as values
 
 ----
 
-```cpp
-template <typename T>
-constexpr bool is_pointer(Type<T>) {
-    return false;
-}
+### But how can we get back the types?
 
-template <typename T>
-constexpr bool is_pointer(Type<T*>) {
-    return true;
-}
-```
-
-----
-
-```cpp
-Type<int> t{};
-auto t_ptr = add_pointer(t);
-static_assert(is_pointer(t_ptr), "");
-```
-
-====================
-
-### How Hana does it
-
-```cpp
-template <typename T>
-struct _type {
-    // plays the role of Type<T> previously
-};
-
-template <typename T>
-constexpr _type<T> type{};
-
-auto t = type<int>; // just a cool shorthand
-```
-
-====================
-
-### Ok, so we have type -> value
-
-----
-
-### What about value -> type?
-
-```
-auto t = some_type_function(...);
-??? x;
+```c++
+auto t = add_pointer(type<int>); // could be a complex type computation
+using T = the-type-represented-by-t;
+// do something useful with T here...
 ```
 
 ----
 
 ### `decltype` baby!
 
-```
+```c++
 template <typename T>
-struct _type {
+struct Type {
     using type = T;
 };
 
-auto t = some_type_function(...);
-decltype(t)::type x;
+auto t = add_pointer(type<int>);
+using T = decltype(t)::type;
+static_assert(std::is_same<T, int*>{}, "");
+// do something useful with T here...
 ```
 
 ====================
 
-### In general, 3 steps
+### 3 step process
 
 1. Wrap types into `type<...>`
 2. Perform computations
@@ -698,11 +659,43 @@ decltype(t)::type x;
 
 ----
 
-### Isn't that cumbersome?
+## Isn't that cumbersome?
+### Not really <!-- .element class="fragment" -->
 
-1. Only done at some thin boundaries
-2. Not always required
-3. Converting between MPL and Fusion is _way_ more painful
+----
+
+### Only done at some thin boundaries
+
+```c++
+auto t = type<T>;
+auto result = huge_type_computation(t);
+using Result = decltype(result)::type;
+```
+
+<!-- TODO: Better example -->
+
+----
+
+### Not always required
+
+```c++
+auto t = type<T>;
+auto result = f(t);
+static_assert(result == type<Something>, "");
+```
+
+<!-- TODO: Better example -->
+
+Note:
+We did not have to do the third step because we did not need the type itself.
+
+----
+
+### Converting between MPL and Fusion is _way_ more painful
+
+```c++
+TODO
+```
 
 ====================
 
@@ -720,8 +713,11 @@ type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4, "abcd");
 type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 2, "abcd");
 ```
 
-```
-<!-- TODO: show output -->
+```c++
+[...]/how-printf.cpp:38:5: error: static_assert failed
+  "the type of the argument does not match the format character"
+  static_assert(decltype(formats[format_char] == arg_type){},
+  ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
 
 ----
@@ -732,8 +728,11 @@ type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 2, "abcd");
 type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4);
 ```
 
-```
-<!-- TODO: show output -->
+```c++
+[...]/how-printf.cpp:33:3: error: static_assert failed
+  "number of arguments not matching the number of format characters"
+  static_assert(length(format_chars) == sizeof...(args),
+  ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
 
 ----
@@ -754,19 +753,90 @@ auto formats = make_map(
 
 ### Step 2: Wrap `printf` with type checking
 
+```c++
+template <typename Fmt, typename ...Args>
+int type_safe_printf(Fmt fmt, Args const& ...args) {
+  // type checking here
+
+  return std::printf(to<char const*>(fmt), args...);
+};
+```
+
+----
+
+#### Step 2.1: The format string must be known at compile-time
+
+```c++
+template <typename Fmt, typename ...Args>
+int type_safe_printf(Fmt fmt, Args const& ...args) {
+  static_assert(is_a<String>(fmt),
+  "the format string must be a compile-time hana::String");
+
+  // ...
+
+  return std::printf(to<char const*>(fmt), args...);
+};
+```
+
+----
+
+#### Step 2.2: Extract the format characters
+
+```c++
+template <typename Fmt, typename ...Args>
+int type_safe_printf(Fmt fmt, Args const& ...args) {
+  static_assert(is_a<String>(fmt),
+  "the format string must be a compile-time hana::String");
+
+  auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
+    return c ^in^ formats;
+  });
+
+  // ...
+
+  return std::printf(to<char const*>(fmt), args...);
+};
+```
+
+----
+
+#### Step 2.3: Check the number of arguments
+
+```c++
+template <typename Fmt, typename ...Args>
+int type_safe_printf(Fmt fmt, Args const& ...args) {
+  static_assert(is_a<String>(fmt),
+  "the format string must be a compile-time hana::String");
+
+  auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
+    return c ^in^ formats;
+  });
+
+  static_assert(length(format_chars) == sizeof...(args),
+  "number of arguments not matching the number of format characters");
+
+  // ...
+
+  return std::printf(to<char const*>(fmt), args...);
+};
+```
+
+----
+
+#### Step 2.4: Check the type of each argument
+
 ```cpp
 template <typename Fmt, typename ...Args>
 int type_safe_printf(Fmt fmt, Args const& ...args) {
   static_assert(is_a<String>(fmt),
   "the format string must be a compile-time hana::String");
 
-  // type-checking is done here, and then we just forward to printf.
   auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
     return c ^in^ formats;
   });
 
   static_assert(length(format_chars) == sizeof...(args),
-  "the number of format characters does not match the number of arguments");
+  "number of arguments not matching the number of format characters");
 
   auto conversions = zip(tuple_t<std::decay_t<Args>...>, format_chars);
   for_each(conversions, fuse([](auto arg_type, auto format_char) {
@@ -777,8 +847,6 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
   return std::printf(to<char const*>(fmt), args...);
 };
 ```
-
-<!-- TODO: make sure the code fits -->
 
 ==============================================================================
 

@@ -25,13 +25,12 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
   static_assert(is_a<String>(fmt),
   "the format string must be a compile-time hana::String");
 
-  // type-checking is done here, and then we just forward to printf.
   auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
     return c ^in^ formats;
   });
 
   static_assert(length(format_chars) == sizeof...(args),
-  "the number of format characters does not match the number of arguments");
+  "number of arguments not matching the number of format characters");
 
   auto conversions = zip(tuple_t<std::decay_t<Args>...>, format_chars);
   for_each(conversions, fuse([](auto arg_type, auto format_char) {
