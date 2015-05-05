@@ -238,11 +238,6 @@ vector<long long, long long, long double> wide_values =
 
 ### See for yourself
 
-<!--
-TODO: This should be a short but convincing gattering of patterns that are
-done better by Hana.
--->
-
 ====================
 
 ### Loop unrolling: then
@@ -621,6 +616,63 @@ static_assert(is_pointer(i_ptr), "");
 
 ====================
 
+### A generic lifting process
+
+#### Let's reconsider:
+
+```c++
+template <typename T>
+Type<T*> add_pointer(Type<T>) { return {}; }
+```
+
+----
+
+#### Could also be written as:
+```c++
+template <typename T>
+auto add_pointer(Type<T>) {
+    return type<typename std::add_pointer<T>::type>;
+}
+```
+
+----
+
+### There's a pattern!
+
+```cpp
+template <template <typename ...> class F>
+struct Metafunction {
+    template <typename ...T>
+    auto operator()(Type<T> ...) const {
+        return type<
+            typename F<T...>::type
+        >;
+    }
+};
+
+Metafunction<std::add_pointer> add_pointer{};
+
+auto i = type<int>;
+auto i_ptr = add_pointer(i);
+static_assert(is_pointer(i_ptr), "");
+```
+
+----
+
+### Sugar, again
+
+```cpp
+template <template <typename ...> class F>
+constexpr Metafunction<F> metafunction{};
+
+auto add_pointer = metafunction<std::add_pointer>;
+auto remove_reference = metafunction<std::remove_reference>;
+auto add_const = metafunction<std::add_const>;
+// ...
+```
+
+====================
+
 ### So we can represent types as values
 
 ----
@@ -699,6 +751,82 @@ TODO
 
 ====================
 
+## But what does that buy us?
+
+====================
+
+### Full language can be used
+
+__Before__
+```cpp
+using ts = vector<int, char&, void*>;
+using us = copy_if<ts, or_<std::is_pointer<_1>,
+                           std::is_reference<_1>>>::type;
+```
+
+----
+
+__After__
+```cpp
+auto ts = make_tuple(type<int>, type<char&>, type<void*>);
+auto us = filter(ts, [](auto t) {
+  return or_(is_pointer(t), is_reference(t));
+});
+```
+
+====================
+
+### Only one library is required
+
+__Before__
+```cpp
+// types (MPL)
+using ts = mpl::vector<int, char&, void*>;
+using us = mpl::copy_if<ts, mpl::or_<std::is_pointer<_1>,
+                                     std::is_reference<_1>>>::type;
+
+// values (Fusion)
+auto vs = fusion::make_vector(1, 'c', nullptr, 3.5);
+auto ws = fusion::filter_if<std::is_integral<mpl::_1>>(vs);
+```
+
+----
+
+__After__
+```cpp
+// types
+auto ts = make_tuple(type<int>, type<char&>, type<void*>);
+auto us = filter(ts, [](auto t) {
+  return or_(is_pointer(t), is_reference(t));
+});
+
+// values
+auto vs = make_tuple(1, 'c', nullptr, 3.5);
+auto ws = filter(vs, [](auto t) {
+  return is_integral(type<decltype(t)>);
+});
+```
+
+----
+
+### Sugar
+
+```cpp
+// types
+auto ts = tuple_t<int, char&, void*>;
+auto us = filter(ts, [](auto t) {
+  return or_(is_pointer(t), is_reference(t));
+});
+
+// values
+auto vs = make_tuple(1, 'c', nullptr, 3.5);
+auto ws = filter(vs, [](auto t) {
+  return is_integral(t);
+});
+```
+
+====================
+
 ### Example: type safe `printf`
 
 ```cpp
@@ -751,20 +879,7 @@ auto formats = make_map(
 
 ----
 
-### Step 2: Wrap `printf` with type checking
-
-```c++
-template <typename Fmt, typename ...Args>
-int type_safe_printf(Fmt fmt, Args const& ...args) {
-  // type checking here
-
-  return std::printf(to<char const*>(fmt), args...);
-};
-```
-
-----
-
-#### Step 2.1: The format string must be known at compile-time
+### Step 2: Ensure a compile-time format string
 
 ```c++
 template <typename Fmt, typename ...Args>
@@ -780,7 +895,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ----
 
-#### Step 2.2: Extract the format characters
+### Step 3: Extract the format characters
 
 ```c++
 template <typename Fmt, typename ...Args>
@@ -800,7 +915,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ----
 
-#### Step 2.3: Check the number of arguments
+### Step 4: Check the number of arguments
 
 ```c++
 template <typename Fmt, typename ...Args>
@@ -823,7 +938,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ----
 
-#### Step 2.4: Check the type of each argument
+### Step 5: Check the type of each argument
 
 ```cpp
 template <typename Fmt, typename ...Args>

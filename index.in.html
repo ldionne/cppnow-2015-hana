@@ -188,11 +188,6 @@ vector<long long, long long, long double> wide_values =
 
 ### See for yourself
 
-<!--
-TODO: This should be a short but convincing gattering of patterns that are
-done better by Hana.
--->
-
 ====================
 
 ### Loop unrolling: then
@@ -408,6 +403,39 @@ operator==  -> std::is_same
 
 ====================
 
+### A generic lifting process
+
+#### Let's reconsider:
+
+```c++
+template <typename T>
+Type<T*> add_pointer(Type<T>) { return {}; }
+```
+
+----
+
+#### Could also be written as:
+```c++
+template <typename T>
+auto add_pointer(Type<T>) {
+    return type<typename std::add_pointer<T>::type>;
+}
+```
+
+----
+
+### There's a pattern!
+
+%%how-lift%%
+
+----
+
+### Sugar, again
+
+%%how-lift-sugar%%
+
+====================
+
 ### So we can represent types as values
 
 ----
@@ -486,6 +514,40 @@ TODO
 
 ====================
 
+## But what does that buy us?
+
+====================
+
+### Full language can be used
+
+__Before__
+%%how-full_language-mpl%%
+
+----
+
+__After__
+%%how-full_language-hana%%
+
+====================
+
+### Only one library is required
+
+__Before__
+%%how-onelib-mpl%%
+
+----
+
+__After__
+%%how-onelib-hana%%
+
+----
+
+### Sugar
+
+%%how-onelib-hana-sugar%%
+
+====================
+
 ### Example: type safe `printf`
 
 %%how-printf-usage%%
@@ -524,20 +586,7 @@ TODO
 
 ----
 
-### Step 2: Wrap `printf` with type checking
-
-```c++
-template <typename Fmt, typename ...Args>
-int type_safe_printf(Fmt fmt, Args const& ...args) {
-  // type checking here
-
-  return std::printf(to<char const*>(fmt), args...);
-};
-```
-
-----
-
-#### Step 2.1: The format string must be known at compile-time
+### Step 2: Ensure a compile-time format string
 
 ```c++
 template <typename Fmt, typename ...Args>
@@ -553,7 +602,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ----
 
-#### Step 2.2: Extract the format characters
+### Step 3: Extract the format characters
 
 ```c++
 template <typename Fmt, typename ...Args>
@@ -573,7 +622,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ----
 
-#### Step 2.3: Check the number of arguments
+### Step 4: Check the number of arguments
 
 ```c++
 template <typename Fmt, typename ...Args>
@@ -596,7 +645,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ----
 
-#### Step 2.4: Check the type of each argument
+### Step 5: Check the type of each argument
 
 %%how-printf-core%%
 
