@@ -59,10 +59,97 @@ Louis Dionne, C++Now 2015
 - Why?
 - How?
 
-==============================================================================
-
 <!-- Define new MathJax commands here to avoid seeing them load on the first slide. -->
 $\newcommand{\cc}[1]{{\tt #1}}$
+
+==============================================================================
+
+### What are the types of sequences in C++?
+
+====================
+
+### Homogeneous dynamic sequences (classic)
+
+#### Extensible
+
+```c++
+std::vector<int> seq;
+int i = 0;
+while (dynamic_condition())
+  seq.push_back(i++);
+```
+
+#### Fixed-size
+
+```c++
+std::array<std::string, 10> seq;
+for (std::string& s: seq)
+  s = user_input();
+```
+
+----
+
+### Homogeneous `constexpr` sequences
+
+#### Extensible
+
+```c++
+TODO: tricky constexpr linked list
+```
+
+#### Fixed-size
+
+```c++
+constexpr std::array<int, 10> seq = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+constexpr int i = seq[3];
+```
+
+====================
+
+### Heterogeneous dynamic sequences
+
+#### Extensible
+
+impossible
+
+#### Fixed-size
+
+```c++
+std::tuple<std::string, std::vector<int>> seq{user_input(), stuff()};
+std::string& s = std::get<0>(seq);
+```
+
+----
+
+### Heterogeneous `constexpr` sequences
+
+#### Extensible
+
+impossible
+
+#### Fixed-size
+
+```c++
+constexpr std::tuple<int, char, float> seq = {1, 'c', 3.4f};
+constexpr char c = std::get<1>(seq);
+```
+
+====================
+
+### Type-level sequences
+
+```c++
+using seq = vector<int, char, float, int_<3>>;
+using c = at_c<seq, 1>::type;
+```
+
+====================
+
+### `constexpr` and heterogeneity are orthogonal
+
+<!-- TODO: Harmonize above this with below this -->
+
+====================
 
 ## What are type-level computations?
 
@@ -270,6 +357,23 @@ _main:
 
 ====================
 
+### Compile-times: then and now
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.including.compile.json"></div>
+
+----
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.fold_left.compile.json"></div>
+
+----
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.transform.compile.json"></div>
+
+====================
+
 ## Still not convinced?
 ### Here's more
 
@@ -415,6 +519,7 @@ Type<T*> add_pointer(Type<T>) { return {}; }
 ----
 
 #### Could also be written as:
+
 ```c++
 template <typename T>
 auto add_pointer(Type<T>) {
@@ -697,7 +802,6 @@ $$
         <script src="js/reveal.js"></script>
 
         <script>
-
             Reveal.initialize({
                 slideNumber: true,
                 history: true,
@@ -712,7 +816,44 @@ $$
                     { src: 'plugin/math/math.js', async: true }
                 ]
             });
+        </script>
 
+        <!-- Additional javascript for drawing charts. -->
+        <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script type="text/javascript" src="http://code.highcharts.com/highcharts.js"></script>
+        <script type="text/javascript" src="http://code.highcharts.com/modules/data.js"></script>
+        <script type="text/javascript" src="http://code.highcharts.com/modules/exporting.js"></script>
+        <script type="text/javascript" src="js/chart.js"></script>
+        <script type="text/javascript" src="https://cdn.rawgit.com/michael/github/fb54ae3856341ef4bd3acf877ccf24836fc079d9/github.js"></script>
+        <script type="text/javascript">
+          window.onload = function() {
+            var github = new Github({});
+            var hana = github.getRepo('ldionne', 'hana');
+            hana.getRef('heads/datasets', function(err, sha) {
+              var repo = "https://cdn.rawgit.com/ldionne/hana/" + sha + "/release/clang-3.5.0/";
+
+              $(".benchmark-chart").each(function(index, div) {
+                var dataset = div.getAttribute("data-dataset");
+                $.getJSON(repo + dataset, function(options) {
+                  Hana.initChart($(div), options);
+                });
+              });
+            });
+          };
+        </script>
+
+        <!--
+          Some slides contain charts in them. Sometimes, the charts will not
+          be properly centered in the slide. To fix this, slides with the
+          `data-state="haschart"` attribute trigger a reflowing of all the
+          charts inside their div, which is overkill but fixes the problem.
+        -->
+        <script type="text/javascript">
+          Reveal.addEventListener('haschart', function() {
+            Highcharts.charts.forEach(function(chart) {
+              chart.reflow();
+            });
+          }, false);
         </script>
 
     </body>
