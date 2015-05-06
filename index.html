@@ -1255,50 +1255,23 @@ constexpr auto operator"" _c() {
 static_assert(1_c + 4_c == 5_c, "");
 ```
 
-====================
+<!-- TODO: Make a bridge between the last section and the end of the presentation -->
+
+==============================================================================
 
 ## My proposal: Hana
-### Heterogeneous + type level computations
+
+- Heterogeneous + type level computations
+- 75+ algorithms
+- 8 heterogeneous containers
+- Improved compile-times
 
 ====================
 
-<!-- TODO: Introduce the features of the library through use cases -->
-
-### Heterogeneous sequences
-
-- `tuple`
-- `range`
-- `map`
-- `set`
-
-----
-
-### Heterogeneous algorithms
-
-- `transform`
-- `fold`s
-- `filter`
-- `reverse`
-- much more totaling ~75 algorithms
-
-(Fusion has ~50)
-
-----
-
-### Tools to simplify common patterns
-
-- `sfinae`
-- loop unrolling
-- TODO
-
-====================
-
-### Fully functional on C++14 compilers
+### Fully working on C++14 compilers
 
 - Clang >= 3.5
 - GCC 5 (almost)
-
-<!-- TODO: correct this if we don't make it with GCC -->
 
 ====================
 
@@ -1311,9 +1284,10 @@ static_assert(1_c + 4_c == 5_c, "");
 
 ====================
 
-### Save yourself some pain and try it!
+## Embrace the future
+## Embrace Hana <!-- .element class="fragment fade-in" -->
 
-==============================================================================
+====================
 
 # Thank you
 
@@ -1324,11 +1298,13 @@ http://github.com/ldionne
 
 <!--
 TODO:
-Potential case studies:
-- tuple_cat
-- common_type
-- Heterogeneous linear algebra
-- Boost.Accumulators
+- Potential case studies:
+  - tuple_cat
+  - common_type
+  - Heterogeneous linear algebra
+  - Boost.Accumulators
+
+- Introduce `sfinae` somewhere
 -->
 
                 </script>
