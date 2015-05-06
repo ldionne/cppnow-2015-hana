@@ -313,6 +313,18 @@ _main:
 
 ====================
 
+### Mapping types to values: then
+
+%%why-map-then%%
+
+----
+
+### Mapping types to values: now
+
+%%why-map-now%%
+
+====================
+
 ### Checking for a member: then
 
 %%why-member-then%%
@@ -328,6 +340,24 @@ _main:
 ### Checking for a member: what it should be
 
 %%why-member-should%%
+
+====================
+
+### Compile-time arithmetic: then
+
+%%why-arithmetic-then%%
+
+----
+
+### Compile-time arithmetic: now
+
+%%why-arithmetic-now%%
+
+----
+
+### But runtime arithmetic works too
+
+%%why-arithmetic-now-dynamic%%
 
 ====================
 
@@ -405,8 +435,6 @@ implemented in Hana.
 ### Accessing an element of a tuple: now
 
 %%why-nth-now%%
-
-<!-- TODO: more convincing examples -->
 
 ====================
 
@@ -773,6 +801,35 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ====================
 
+### So we manipulate types as values
+
+----
+
+### What about integral constants?
+
+%%how-integral%%
+
+----
+
+### Sugar
+
+%%how-integral-sugar%%
+
+----
+
+### More sugar
+
+```c++
+template <char ...c>
+constexpr auto operator"" _c() {
+    // parse the characters and return an integral_constant
+}
+
+static_assert(1_c + 4_c == 5_c, "");
+```
+
+====================
+
 ## My proposal: Hana
 ### Heterogeneous + type level computations
 
@@ -806,8 +863,6 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 - `sfinae`
 - loop unrolling
 - TODO
-
-<!-- TODO: find a place to introduce IntegralConstant -->
 
 ====================
 

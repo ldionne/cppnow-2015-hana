@@ -377,6 +377,36 @@ _main:
 
 ====================
 
+### Mapping types to values: then
+
+```cpp
+auto map = make_map<char, int, long, float, double, void>(
+  "char", "int", "long", "float", "double", "void"
+);
+
+std::string i = at_key<int>(map);
+assert(i == "int");
+```
+
+----
+
+### Mapping types to values: now
+
+```cpp
+auto map = make_map(
+  make_pair(type<char>,   "char"),
+  make_pair(type<int>,    "int"),
+  make_pair(type<long>,   "long"),
+  make_pair(type<float>,  "float"),
+  make_pair(type<double>, "double")
+);
+
+std::string i = map[type<int>];
+assert(i == "int");
+```
+
+====================
+
 ### Checking for a member: then
 
 ```cpp
@@ -423,6 +453,66 @@ auto has_xxx = is_valid([](auto t) -> decltype(t.xxx) {});
 
 struct Foo { int xxx; };
 static_assert(has_xxx(type<Foo>), "");
+```
+
+====================
+
+### Compile-time arithmetic: then
+
+```cpp
+template <typename P1, typename P2>
+struct distance {
+  using xs = typename minus<typename P1::first,
+                            typename P2::first>::type;
+  using ys = typename minus<typename P1::second,
+                            typename P2::second>::type;
+  using type = typename sqrt<
+    typename plus<
+      typename multiplies<xs, xs>::type,
+      typename multiplies<ys, ys>::type
+    >::type
+  >::type;
+};
+
+template <typename X, typename Y>
+using point = pair<X, Y>;
+
+static_assert(equal_to<
+  distance<point<int_<3>, int_<5>>, point<int_<7>, int_<2>>>::type,
+  int_<5>
+>::value, "");
+```
+
+----
+
+### Compile-time arithmetic: now
+
+```cpp
+template <typename P1, typename P2>
+constexpr auto distance(P1 p1, P2 p2) {
+  auto xs = first(p1) - first(p2);
+  auto ys = second(p1) - second(p2);
+  return sqrt(xs*xs + ys*ys);
+}
+
+constexpr auto point = make_pair;
+
+static_assert(
+  decltype(distance(point(3_c, 5_c), point(7_c, 2_c)) == 5_c)::value
+, "");
+
+// or simply
+static_assert(distance(point(3_c, 5_c), point(7_c, 2_c)) == 5_c, "");
+```
+
+----
+
+### But runtime arithmetic works too
+
+```cpp
+auto p1 = point(3, 5); // dynamic values now
+auto p2 = point(7, 2); //
+assert(distance(p1, p2) == 5); // same function works!
 ```
 
 ====================
@@ -626,8 +716,6 @@ char x = std::get<1>(values);
 hana::_tuple<int, char, float> values = {1, 'x', 3.4f};
 char x = values[1_c];
 ```
-
-<!-- TODO: more convincing examples -->
 
 ====================
 
@@ -1118,6 +1206,57 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ====================
 
+### So we manipulate types as values
+
+----
+
+### What about integral constants?
+
+```cpp
+template <typename T, T v>
+struct integral_constant { /* usual stuff */ };
+template <typename V, V v, typename U, U u>
+constexpr auto operator+(integral_constant<V, v>, integral_constant<U, u>)
+{ return integral_constant<decltype(v + u), v + u>{}; }
+
+template <typename V, V v, typename U, U u>
+constexpr auto operator==(integral_constant<V, v>, integral_constant<U, u>)
+{ return integral_constant<bool, v == u>{}; }
+
+// ...
+
+static_assert(integral_constant<int, 1>{} + integral_constant<int, 4>{}
+                                          ==
+                            integral_constant<int, 5>{}
+, "");
+```
+
+----
+
+### Sugar
+
+```cpp
+template <int i>
+constexpr integral_constant<int, i> int_{};
+
+static_assert(int_<1> + int_<4> == int_<5>, "");
+```
+
+----
+
+### More sugar
+
+```c++
+template <char ...c>
+constexpr auto operator"" _c() {
+    // parse the characters and return an integral_constant
+}
+
+static_assert(1_c + 4_c == 5_c, "");
+```
+
+====================
+
 ## My proposal: Hana
 ### Heterogeneous + type level computations
 
@@ -1151,8 +1290,6 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 - `sfinae`
 - loop unrolling
 - TODO
-
-<!-- TODO: find a place to introduce IntegralConstant -->
 
 ====================
 
