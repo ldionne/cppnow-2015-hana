@@ -558,6 +558,54 @@ int main() {
 
 ====================
 
+<!--
+TODO: The example is bad; basically it only shows that `unpack` is
+implemented in Hana.
+-->
+
+### Calling a function with a `tuple`: then
+
+```cpp
+template <typename Tuple, typename F, std::size_t ...i>
+constexpr decltype(auto)
+unpack_impl(Tuple&& tuple, F&& f, std::index_sequence<i...>) {
+  return std::forward<F>(f)(std::get<i>(std::forward<Tuple>(tuple))...);
+}
+
+template <typename Tuple, typename F>
+constexpr decltype(auto) unpack(Tuple&& tuple, F&& f) {
+    constexpr std::size_t n = std::tuple_size<
+        std::remove_reference_t<Tuple>
+    >::value;
+    return unpack_impl(std::forward<Tuple>(tuple), std::forward<F>(f),
+                       std::make_index_sequence<n>{});
+}
+
+void f(int a, double b, std::string c) {
+  std::cout << a << ":" << b << ":" << c << std::endl;
+}
+
+int main() {
+  unpack(std::make_tuple(1, 3.4, "abcdef"), f);
+}
+```
+
+----
+
+### Calling a function with a `tuple`: now
+
+```cpp
+void f(int a, double b, std::string c) {
+  std::cout << a << ":" << b << ":" << c << std::endl;
+}
+
+int main() {
+  unpack(make_tuple(1, 3.4, "abcdef"), f);
+}
+```
+
+====================
+
 ## Still not convinced?
 ### Here's more
 
@@ -1068,6 +1116,66 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 };
 ```
 
+====================
+
+## My proposal: Hana
+### Heterogeneous + type level computations
+
+====================
+
+<!-- TODO: Introduce the features of the library through use cases -->
+
+### Heterogeneous sequences
+
+- `tuple`
+- `range`
+- `map`
+- `set`
+
+----
+
+### Heterogeneous algorithms
+
+- `transform`
+- `fold`s
+- `filter`
+- `reverse`
+- much more totaling ~75 algorithms
+
+(Fusion has ~50)
+
+----
+
+### Tools to simplify common patterns
+
+- `sfinae`
+- loop unrolling
+- TODO
+
+<!-- TODO: find a place to introduce IntegralConstant -->
+
+====================
+
+### Fully functional on C++14 compilers
+
+- Clang >= 3.5
+- GCC 5 (almost)
+
+<!-- TODO: correct this if we don't make it with GCC -->
+
+====================
+
+### Available in your next Boost release!
+#### (hopefully)
+
+====================
+
+### Formal review: June 10 - June 24
+
+====================
+
+### Save yourself some pain and try it!
+
 ==============================================================================
 
 # Thank you
@@ -1077,35 +1185,14 @@ http://ldionne.com <br>
 http://github.com/ldionne
 </span>
 
-==============================================================================
-
-### Misc slides
-
-====================
-
-### Mathematical definition of a metafunction
-
-$$
-\begin{matrix}
-    \cc{add\\_pointer} : Type \to Type                                  \\\\
-                         \cc{T} \mapsto \cc{T*}
-\end{matrix}
-$$
-
-where
-
-$$
-    Type := \\{ \text{all types } \cc{T} \\}
-$$
-
-====================
-
-### Potential case studies:
-
+<!--
+TODO:
+Potential case studies:
 - tuple_cat
 - common_type
 - Heterogeneous linear algebra
 - Boost.Accumulators
+-->
 
                 </script>
                 </section>
