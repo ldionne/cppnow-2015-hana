@@ -23,9 +23,35 @@ int main() {
 
 {
 
+using namespace boost::mpl;
+
+// sample(full_language-then)
+using ts = vector<int, char&, void*>;
+using us = copy_if<ts, or_<std::is_pointer<_1>,
+                           std::is_reference<_1>>>::type;
+// end-sample
+
+static_assert(equal<us, vector<char&, void*>>::value, "");
+
+}{
+
+using namespace boost::hana;
+using namespace boost::hana::traits;
+
+// sample(full_language-now)
+auto ts = make_tuple(type<int>, type<char&>, type<void*>);
+auto us = filter(ts, [](auto t) {
+  return or_(is_pointer(t), is_reference(t));
+});
+// end-sample
+
+BOOST_HANA_CONSTANT_CHECK(us == make_tuple(type<char&>, type<void*>));
+
+}{
+
 using mpl::_1;
 
-// sample(how-onelib-mpl)
+// sample(onelib-then)
 // types (MPL)
 using ts = mpl::vector<int, char&, void*>;
 using us = mpl::copy_if<ts, mpl::or_<std::is_pointer<_1>,
@@ -44,29 +70,7 @@ BOOST_HANA_RUNTIME_CHECK(ws == fusion::make_vector(1, 'c'));
 using namespace boost::hana;
 using namespace boost::hana::traits;
 
-// sample(how-onelib-hana)
-// types
-auto ts = make_tuple(type<int>, type<char&>, type<void*>);
-auto us = filter(ts, [](auto t) {
-  return or_(is_pointer(t), is_reference(t));
-});
-
-// values
-auto vs = make_tuple(1, 'c', nullptr, 3.5);
-auto ws = filter(vs, [](auto t) {
-  return is_integral(type<decltype(t)>);
-});
-// end-sample
-
-BOOST_HANA_CONSTANT_CHECK(us == make_tuple(type<char&>, type<void*>));
-BOOST_HANA_RUNTIME_CHECK(ws == make_tuple(1, 'c'));
-
-}{
-
-using namespace boost::hana;
-using namespace boost::hana::traits;
-
-// sample(how-onelib-hana-sugar)
+// sample(onelib-now)
 // types
 auto ts = tuple_t<int, char&, void*>;
 auto us = filter(ts, [](auto t) {

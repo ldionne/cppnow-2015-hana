@@ -4,7 +4,7 @@
 #include <type_traits>
 
 
-// sample(why-member-then)
+// sample(member-then)
 template <typename T, typename = decltype(&T::xxx)>
 static std::true_type has_xxx_impl(int);
 

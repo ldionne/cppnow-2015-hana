@@ -1,29 +1,36 @@
 // Copyright Louis Dionne 2015
 // Distributed under the Boost Software License, Version 1.0.
 
-#include <boost/hana.hpp>
+#include <boost/hana/assert.hpp>
+#include <boost/hana/functional/fix.hpp>
+#include <boost/hana/functional/partial.hpp>
+#include <boost/hana/integral_constant.hpp>
+#include <boost/hana/lazy.hpp>
+#include <boost/hana/tuple.hpp>
 using namespace boost::hana;
 
 
-// sample(why-sorting-now)
-auto sort = fix([](auto sort, auto xs, auto pred) {
+namespace disambiguate {
+// sample(sorting-now)
+template <typename Xs, typename Pred>
+auto sort(Xs xs, Pred pred) {
   return eval_if(length(xs) < size_t<2>,
     lazy(xs),
     lazy([=](auto xs) {
       auto pivot = head(xs);
-      auto rest = tail(xs);
-      auto parts = partition(rest, partial(pred, pivot));
+      auto parts = partition(tail(xs), partial(pred, pivot));
       return concat(
-        sort(second(parts), pred),
-        prepend(pivot, sort(first(parts), pivot))
+        append(sort(second(parts), pred), pivot),
+        sort(first(parts), pivot)
       );
     })(xs)
   );
-});
+}
 // end-sample
+}
 
 int main() {
-  using ::sort;
+  using disambiguate::sort;
   BOOST_HANA_CONSTANT_CHECK(
     sort(make_tuple(), less) == make_tuple()
   );

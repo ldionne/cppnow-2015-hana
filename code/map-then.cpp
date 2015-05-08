@@ -10,7 +10,7 @@ using namespace boost::fusion;
 
 
 int main() {
-// sample(why-map-then)
+// sample(map-then)
 auto map = make_map<char, int, long, float, double, void>(
   "char", "int", "long", "float", "double", "void"
 );

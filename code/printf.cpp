@@ -9,7 +9,7 @@ using namespace boost::hana;
 using namespace boost::hana::literals;
 
 
-// sample(how-printf-formats)
+// sample(printf-formats)
 auto formats = make_map(
   make_pair(char_<'i'>, type<int>),
   make_pair(char_<'f'>, type<double>),
@@ -19,7 +19,7 @@ auto formats = make_map(
 );
 // end-sample
 
-// sample(how-printf-core)
+// sample(printf-core)
 template <typename Fmt, typename ...Args>
 int type_safe_printf(Fmt fmt, Args const& ...args) {
   static_assert(is_a<String>(fmt),
@@ -45,15 +45,15 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 int main() {
 
 #if 1
-// sample(how-printf-usage)
+// sample(printf-usage)
 type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4, "abcd");
 // end-sample
 #elif 0
-// sample(how-printf-wrong_type)
+// sample(printf-wrong_type)
 type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 2, "abcd");
 // end-sample
 #elif 0
-// sample(how-printf-wrong_narg)
+// sample(printf-wrong_narg)
 type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4);
 // end-sample
 #endif

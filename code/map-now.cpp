@@ -10,7 +10,7 @@ using namespace boost::hana;
 
 
 int main() {
-// sample(why-map-now)
+// sample(map-now)
 auto map = make_map(
   make_pair(type<char>,   "char"),
   make_pair(type<int>,    "int"),

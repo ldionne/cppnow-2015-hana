@@ -9,7 +9,7 @@ namespace std {
     using void_t = void;
 }
 
-// sample(why-member-soon)
+// sample(member-soon)
 template <typename T, typename = void>
 struct has_xxx
     : std::false_type

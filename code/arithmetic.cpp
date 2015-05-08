@@ -50,7 +50,7 @@ struct sqrt
   : integral_c<typename N::value_type, ::sqrt(N::value)>
 { };
 
-// sample(why-arithmetic-then)
+// sample(arithmetic-then)
 template <typename P1, typename P2>
 struct distance {
   using xs = typename minus<typename P1::first,
@@ -80,7 +80,7 @@ namespace now {
 using namespace boost::hana;
 using namespace boost::hana::literals;
 
-// sample(why-arithmetic-now)
+// sample(arithmetic-now)
 template <typename P1, typename P2>
 constexpr auto distance(P1 p1, P2 p2) {
   auto xs = first(p1) - first(p2);
@@ -100,7 +100,7 @@ static_assert(distance(point(3_c, 5_c), point(7_c, 2_c)) == 5_c, "");
 
 void test() {
 
-// sample(why-arithmetic-now-dynamic)
+// sample(arithmetic-now-dynamic)
 auto p1 = point(3, 5); // dynamic values now
 auto p2 = point(7, 2); //
 assert(distance(p1, p2) == 5); // same function works!

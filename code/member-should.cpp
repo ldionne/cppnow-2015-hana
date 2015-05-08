@@ -5,11 +5,14 @@
 using namespace boost::hana;
 
 
-// sample(why-member-should)
+int main() {
+// sample(member-should)
 auto has_xxx = is_valid([](auto t) -> decltype(t.xxx) {});
 
 struct Foo { int xxx; };
-static_assert(has_xxx(type<Foo>), "");
-// end-sample
+Foo foo{1};
 
-int main() { }
+static_assert(has_xxx(foo), "");
+static_assert(!has_xxx("abcdef"), "");
+// end-sample
+}

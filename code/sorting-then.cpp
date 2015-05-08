@@ -23,7 +23,7 @@
 using namespace boost::mpl;
 
 
-// sample(why-sorting-then)
+// sample(sorting-then)
 template <typename Sequence, typename Pred>
 struct sort;
 

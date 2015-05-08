@@ -52,230 +52,482 @@ Louis Dionne, C++Now 2015
 
 ### Such a cocky title
 
-====================
-
-## Outline
-- What?
-- Why?
-- How?
-
-<!-- Define new MathJax commands here to avoid seeing them load on the first slide. -->
-$\newcommand{\cc}[1]{{\tt #1}}$
-
 ==============================================================================
 
-### What are the types of sequences in C++?
+## Computational dimensions in C++
+
+<!--
+If needed, define new MathJax commands just below this to avoid seeing
+them load on the first slide.
+-->
+
+<!--
+TODO: For each type of non-classic computational dimension,
+show a simple use case
+-->
 
 ====================
 
-### Homogeneous dynamic sequences (classic)
-
-#### Extensible
-
-```c++
-std::vector<int> seq;
-int i = 0;
-while (dynamic_condition())
-  seq.push_back(i++);
-```
-
-#### Fixed-size
-
-```c++
-std::array<std::string, 10> seq;
-for (std::string& s: seq)
-  s = user_input();
-```
+### Homogeneous + dynamic (classic)
 
 ----
 
-### Homogeneous `constexpr` sequences
-
-#### Extensible
+### Runtime sequences
 
 ```c++
-TODO: tricky constexpr linked list
-```
-
-#### Fixed-size
-
-```c++
-constexpr std::array<int, 10> seq = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-constexpr int i = seq[3];
-```
-
-====================
-
-### Heterogeneous dynamic sequences
-
-#### Extensible
-
-impossible
-
-#### Fixed-size
-
-```c++
-std::tuple<std::string, std::vector<int>> seq{user_input(), stuff()};
-std::string& s = std::get<0>(seq);
+std::vector<int> ints{1, 2, 3, 4};
 ```
 
 ----
 
-### Heterogeneous `constexpr` sequences
-
-#### Extensible
-
-impossible
-
-#### Fixed-size
+### Runtime functions
 
 ```c++
-constexpr std::tuple<int, char, float> seq = {1, 'c', 3.4f};
-constexpr char c = std::get<1>(seq);
+std::string f(int i) {
+  return std::to_string(i * i);
+}
+```
+
+----
+
+### Runtime algorithms
+
+```c++
+std::vector<std::string> strings;
+std::transform(ints.begin(), ints.end(),
+               std::back_inserter(strings), f);
 ```
 
 ====================
 
-### Type-level sequences
+### Homogeneous + `constexpr`
+
+----
+
+### `constexpr` sequences
 
 ```c++
-using seq = vector<int, char, float, int_<3>>;
-using c = at_c<seq, 1>::type;
+constexpr std::array<int, 4> ints{1, 2, 3, 4};
+```
+
+----
+
+### `constexpr` functions
+
+```c++
+constexpr int factorial(int n) {
+  return n == 0 ? 1 : n * factorial(n - 1);
+}
+```
+
+----
+
+### `constexpr` algorithms
+
+```c++
+template <typename T, std::size_t N, typename F>
+  constexpr std::array<std::result_of_t<F(T)>, N>
+transform(std::array<T, N> array, F f) {
+  std::array<std::result_of_t<F(T)>, N> result{};
+  for (std::size_t i = 0; i < N; ++i)
+    result[i] = f(array[i]);
+  return result;
+}
+
+constexpr std::array<int, 4> ints{1, 2, 3, 4};
+constexpr std::array<int, 4> facts = transform(ints, factorial);
+static_assert(facts == std::array<int, 4>{1, 2, 6, 24}, "");
 ```
 
 ====================
 
-### `constexpr` and heterogeneity are orthogonal
-
-<!-- TODO: Harmonize above this with below this -->
-
-====================
-
-## What are type-level computations?
-
-----
-
-### Metafunctions
-
-%%what-type_level-add_pointer%%
-
-----
-
-### Sequences (of types)
-
-%%what-type_level-vector%%
-
-----
-
-### Algorithms (on sequences of types)
-
-%%what-type_level-front%%
-
-----
-
-### More algorithms
-
-%%what-type_level-transform%%
-
-====================
-
-### What is it useful for?
-
-<!-- TODO: Find a simple but useful use case -->
-
-====================
-
-## What are heterogeneous computations?
-
-----
-
-### Heterogeneous functions
-
-%%what-heterogeneous-widen%%
+### Heterogeneous + dynamic (Fusion)
 
 ----
 
 ### Heterogeneous sequences
 
-```cpp
-template <typename ...T>
-struct vector {
-    // essentially a std::tuple
+```c++
+std::tuple<int, std::string, float> xs{1, "abc", 3.4f};
+
+fusion::vector<long, std::string> ys{5l, "hello"};
+```
+
+----
+
+### Heterogeneous functions
+
+```c++
+struct twice {
+  template <typename T>
+  auto operator()(T t) const -> decltype(t + t) {
+    return t + t;
+  }
 };
-
-vector<int, long, float> values = {1, 2l, 3.4f};
 ```
 
 ----
 
-### Algorithms (on heterogeneous sequences)
+### Heterogeneous algorithms
 
-```cpp
-template <typename T, typename ...Ts>
-T front(vector<T, Ts...> v) {
-    // ...
-}
-
-vector<int, long, float> values = {1, 2l, 3.4f};
-int one = front(values);
-```
-
-----
-
-### More algorithms
-
-```cpp
-template <typename ...T, typename F>
-auto // <-- depends on the return type of f on each element
-transform(vector<T...> v, F f) {
-    // ...
-}
-
-vector<int, long, float> values = {1, 2l, 3.4f};
-vector<long long, long long, long double> wide_values =
-                            transform(values, widen{});
+```c++
+fusion::vector<long, std::string> ys{5l, "hello"};
+auto zs = fusion::transform(ys, twice{});
+assert(zs == fusion::vector<long, std::string>{10l, "hellohello"});
 ```
 
 ====================
 
-### What is it useful for?
+### Heterogeneous + `constexpr`
 
-<!-- TODO: Find a simple but useful use case -->
+----
+
+### Heterogeneous `constexpr` sequences
+
+```c++
+constexpr std::tuple<int, long, float> xs{1, 3l, 3.4f};
+```
+
+----
+
+### Heterogeneous `constexpr` functions
+
+```c++
+struct twice {
+  template <typename T>
+  constexpr auto operator()(T t) const -> decltype(t + t) {
+    return t + t;
+  }
+};
+```
+
+----
+
+### Heterogeneous `constexpr` algorithms
+
+```c++
+TODO
+```
+
+====================
+
+### Type-level (MPL)
+
+----
+
+### Type-level sequences
+
+```c++
+TODO
+```
+
+----
+
+### Type-level functions
+
+```c++
+TODO
+```
+
+----
+
+### Type-level algorithms
+
+```c++
+TODO
+```
+
+====================
+
+### `constexpr` &nbsp; $\perp$ &nbsp; heterogeneity
+
+<!-- TODO: Harmonize above this with below this -->
 
 ====================
 
 ## What do I propose?
-### Merge both <!-- .element class="fragment" -->
+### Merge type-level and heterogeneous <!-- .element class="fragment" -->
 
 ==============================================================================
 
 ## Why?
 
+Note:
+This section contains a couple of motivating examples to pique the curiosity.
+The examples should be skimmed over to avoid losing time and needing to
+explain details that will be covered later.
+
+<!-- TODO
+Reorder the examples and maybe add 1-2 examples. Examples to consider:
+- json generation
+- indexed sort
+- hana::sfinae function
+-->
+
 ====================
 
 ### C++14 is a serious game changer
+#### $\implies$ We can do better now
 
 ----
 
 ### Automatically deduced return type
 
+```c++
+template <typename X>
+auto f(X x) {
+  // ...
+  return z; // return type deduced from z
+}
+```
+
 ----
 
 ### Generalized constexpr
+
+```c++
+constexpr unsigned long long factorial(unsigned long long n) {
+  unsigned long long result = 1;
+  while (n != 0)
+    result *= n--;
+  return result;
+}
+```
 
 ----
 
 ### Generic lambdas
 
+```c++
+auto xs = make_tuple("C++Now", 2015);
+unpack(xs, [](auto a, auto b) {
+  std::cout << a << ' ' << b << std::endl;
+});
+```
+
 ----
 
 ### Variable templates
+
+```c++
+template <typename T>
+constexpr T pi = ...;
+
+float ok_precision = pi<float>;
+double good_precision = pi<double>;
+long double awesome_precision = pi<long double>;
+```
 
 ====================
 
 ### See for yourself
 
 ====================
+
+### Checking for a member: then
+
+%%member-then%%
+
+----
+
+### Checking for a member: soon
+
+%%member-soon%%
+
+----
+
+### Checking for a member: what it should be
+
+%%member-should%%
+
+====================
+
+### Introspection: then
+
+%%introspection-then%%
+
+----
+
+### Introspection: now
+
+%%introspection-now%%
+
+====================
+
+### Compile-times: then and now
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.including.compile.json"></div>
+
+----
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.fold_left.compile.json"></div>
+
+----
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.transform.compile.json"></div>
+
+====================
+
+## Still not convinced?
+### Here's more
+
+====================
+
+### Sorting at compile-time: then
+
+%%sorting-then%%
+
+<!-- TODO: The code does not fit in one slide -->
+
+----
+
+### Sorting at compile-time: now
+
+%%sorting-now%%
+
+====================
+
+## We must rethink metaprogramming
+
+====================
+
+## But how?
+
+Note:
+Hopefully, the audience should be convinced by now that there's a better way
+to write metaprograms. My goal is now to convince them that I found it.
+
+==============================================================================
+
+### What are integral constants?
+
+<!--
+TODO:
+  - Make the transition between the How? and this more smooth
+  - Explain how argument passing decays constexprness.
+  - Explain how constexprness can be retained by encoding the value in the type
+  - Ok, so everybody does arithmetic with integers, be they constexpr or not.
+    Why shouldn't we able to do the same when they are encoded as types?
+  - Show a slide with MPL style arithmetic operators. Then, implement them
+    like in Hana.
+-->
+
+----
+
+```c++
+template <typename T, T v>
+struct integral_constant {
+  using type = integral_constant;
+  using value_type = T;
+  static constexpr value_type value = v;
+  constexpr operator value_type() const noexcept { return value; }
+  constexpr value_type operator()() const noexcept { return value; }
+};
+```
+
+Note:
+This section introduces extensions to `std::integral_constant` that follow
+the general philosophy of the paradigm shift. I am preparing the grounds for
+the next section, which will introduce the type/value unification per-se.
+
+----
+
+### What if?
+
+```c++
+template <typename V, V v, typename U, U u>
+constexpr auto operator+(integral_constant<V, v>, integral_constant<U, u>)
+{ return integral_constant<decltype(v + u), v + u>{}; }
+
+template <typename V, V v, typename U, U u>
+constexpr auto operator==(integral_constant<V, v>, integral_constant<U, u>)
+{ return integral_constant<bool, v == u>{}; }
+
+// ...
+```
+
+----
+
+### TODO: Title
+
+```c++
+static_assert(integral_constant<int, 1>{} + integral_constant<int, 4>{}
+                                          ==
+                            integral_constant<int, 5>{}
+, "");
+```
+
+----
+
+### Pass me the sugar, please
+
+```c++
+template <int i>
+constexpr integral_constant<int, i> int_{};
+
+static_assert(int_<1> + int_<4> == int_<5>, "");
+```
+
+----
+
+### More sugar
+
+```c++
+template <char ...c>
+constexpr auto operator"" _c() {
+  // parse the characters and return an integral_constant
+}
+
+static_assert(1_c + 4_c == 5_c, "");
+```
+
+====================
+
+### Euclidean distance
+
+$$
+  \mathrm{distance}\left((x_1, y_1), (x_2, y_2)\right)
+      := \sqrt{(x_1 - x_2)^2 + (y_1 - y_2)^2}
+$$
+
+----
+
+### Compile-time arithmetic: then
+
+%%arithmetic-then%%
+
+----
+
+### Compile-time arithmetic: now
+
+%%arithmetic-now%%
+
+----
+
+### But runtime arithmetic works too
+
+%%arithmetic-now-dynamic%%
+
+====================
+
+### Pretty cool? Wait!
+
+```c++
+template <typename T, T n>
+struct integral_constant {
+  // usual stuff
+
+  template <typename F>
+  void times(F&& f) const {
+    f(); f(); ... f(); // n times
+  }
+};
+```
+
+----
 
 ### Loop unrolling: then
 
@@ -313,144 +565,43 @@ _main:
 
 ====================
 
-### Mapping types to values: then
+### So far so good. Let's push
 
-%%why-map-then%%
+```c++
+template <typename ...T>
+struct tuple {
+  // ...
 
-----
-
-### Mapping types to values: now
-
-%%why-map-now%%
-
-====================
-
-### Checking for a member: then
-
-%%why-member-then%%
+  template <typename N>
+  constexpr decltype(auto) operator[](N const&) {
+    return std::get<N::value>(*this);
+  }
+};
+```
 
 ----
-
-### Checking for a member: soon
-
-%%why-member-soon%%
-
-----
-
-### Checking for a member: what it should be
-
-%%why-member-should%%
-
-====================
-
-### Compile-time arithmetic: then
-
-%%why-arithmetic-then%%
-
-----
-
-### Compile-time arithmetic: now
-
-%%why-arithmetic-now%%
-
-----
-
-### But runtime arithmetic works too
-
-%%why-arithmetic-now-dynamic%%
-
-====================
-
-### Sorting at compile-time: then
-
-%%why-sorting-then%%
-
-<!-- TODO: The code does not fit in one slide -->
-
-----
-
-### Sorting at compile-time: now
-
-%%why-sorting-now%%
-
-====================
-
-### Introspection: then
-
-%%why-introspection-then%%
-
-----
-
-### Introspection: now
-
-%%why-introspection-now%%
-
-====================
-
-### Compile-times: then and now
-
-<!-- .slide: data-state="haschart" -->
-<div class="benchmark-chart" data-dataset="benchmark.including.compile.json"></div>
-
-----
-
-<!-- .slide: data-state="haschart" -->
-<div class="benchmark-chart" data-dataset="benchmark.fold_left.compile.json"></div>
-
-----
-
-<!-- .slide: data-state="haschart" -->
-<div class="benchmark-chart" data-dataset="benchmark.transform.compile.json"></div>
-
-====================
-
-<!--
-TODO: The example is bad; basically it only shows that `unpack` is
-implemented in Hana.
--->
-
-### Calling a function with a `tuple`: then
-
-%%why-unpack-then%%
-
-----
-
-### Calling a function with a `tuple`: now
-
-%%why-unpack-now%%
-
-====================
-
-## Still not convinced?
-### Here's more
-
-====================
 
 ### Accessing an element of a tuple: then
 
-%%why-nth-then%%
-
+```c++
+tuple<int, char, float> values = {1, 'x', 3.4f};
+char x = std::get<1>(values);
+```
 ----
 
 ### Accessing an element of a tuple: now
 
-%%why-nth-now%%
-
-====================
-
-## We must rethink metaprogramming
+```c++
+tuple<int, char, float> values = {1, 'x', 3.4f};
+char x = values[1_c];
+```
 
 ==============================================================================
 
-## But how?
+### What are types?
 
 Note:
-Hopefully you are now convinced that there's a better way to write metaprograms.
-Let me try to convince you I found it.
-
-====================
-
-### What are types?
+This section introduces the type/value unification.
 
 ----
 
@@ -504,85 +655,123 @@ assert(is_pointer(t));
 
 ====================
 
-### It turns out...
-#### The interface is precisely `<type_traits>`
-
-```c++
-add_pointer  -> std::add_pointer
-add_const    -> std::add_const
-add_volatile -> std::add_volatile
-// ...
-
-is_pointer   -> std::is_pointer
-is_const     -> std::is_const
-is_volatile  -> std::is_volatile
-// ...
-
-operator==  -> std::is_same
-// ...
-```
-
-----
-
 ### Cool idea, but useless for metaprogramming
 
 ====================
 
 ### Easy fix: use templates
 
-%%how-unify-Type%%
+```c++
+template <typename T>
+class Type { /* nothing */ };
+```
+
+Note:
+Make explicit the link between this and what we did in the previous section
+with integral constants.
 
 ----
 
 ### Easy fix: use templates
 
-%%how-unify-add_pointer%%
+```c++
+template <typename T>
+Type<T*> add_pointer(Type<T>) { return {}; }
+
+template <typename T>
+constexpr bool is_pointer(Type<T>) { return false; }
+
+template <typename T>
+constexpr bool is_pointer(Type<T*>) { return true; }
+```
 
 ----
 
 ### Tadam!
 
-%%how-unify-usage%%
+```c++
+Type<int> i{};
+auto i_ptr = add_pointer(i);
+static_assert(is_pointer(i_ptr), "");
+```
+
+<!--
+TODO:
+There are going to be objections on why `i_ptr` isn't constexpr.
+Find out why this works even if we're reading from `i_ptr` in `is_pointer`.
+-->
 
 ----
 
-### Pass me the sugar, please
+### Sugar
 
-%%how-unify-type%%
+```c++
+template <typename T>
+constexpr Type<T> type{};
+
+auto i = type<int>;
+auto i_ptr = add_pointer(i);
+static_assert(is_pointer(i_ptr), "");
+```
 
 ====================
 
-### A generic lifting process
+## But what does that buy us?
 
-#### Let's reconsider:
+====================
 
-```c++
-template <typename T>
-Type<T*> add_pointer(Type<T>) { return {}; }
-```
-
-----
-
-#### Could also be written as:
+### Types are now first class citizens!
 
 ```c++
-template <typename T>
-auto add_pointer(Type<T>) {
-    return type<typename std::add_pointer<T>::type>;
-}
+auto ts = make_tuple(type<int>, type<char>, type<void>);
+auto c = ts[1_c];
+
+// sugar:
+auto ts = tuple_t<int, char, void>;
 ```
 
+====================
+
+### Full language can be used
+
+__Before__
+%%full_language-then%%
+
 ----
 
-### There's a pattern!
+__After__
+%%full_language-now%%
 
-%%how-lift%%
+====================
+
+### Only one library is required
+
+__Before__
+%%onelib-then%%
 
 ----
 
-### Sugar, again
+__After__
+%%onelib-now%%
 
-%%how-lift-sugar%%
+====================
+
+### Unified syntax means more reuse
+#### (Amphibious EDSL using Boost.Proto)
+
+%%proto%%
+
+====================
+
+### Unified syntax means more consistency
+
+__Before__
+%%map-then%%
+
+----
+
+__After__
+%%map-now%%
 
 ====================
 
@@ -600,14 +789,20 @@ using T = the-type-represented-by-t;
 
 ----
 
-### `decltype` baby!
+### Easy fix: use nested alias
 
 ```c++
 template <typename T>
 struct Type {
     using type = T;
 };
+```
 
+----
+
+### And then `decltype`
+
+```c++
 auto t = add_pointer(type<int>);
 using T = decltype(t)::type;
 static_assert(std::is_same<T, int*>{}, "");
@@ -637,76 +832,133 @@ auto result = huge_type_computation(t);
 using Result = decltype(result)::type;
 ```
 
-<!-- TODO: Better example -->
-
 ----
 
 ### Not always required
 
 ```c++
 auto t = type<T>;
-auto result = f(t);
+auto result = type_computation(t);
 static_assert(result == type<Something>, "");
 ```
-
-<!-- TODO: Better example -->
 
 Note:
 We did not have to do the third step because we did not need the type itself.
 
 ----
 
-### Converting between MPL and Fusion is _way_ more painful
+### Even then, it's not that bad
+
+----
+
+### Finding smallest type: then
+
+%%smallest_type-then%%
+
+----
+
+### Finding smallest type: now
+
+%%smallest_type-now%%
+
+Note:
+Also note that this is a very good example of a short type-only computation,
+which is where we would expect the new paradigm to suffer the most.
+
+====================
+
+### If types are objects, what would be their interface?
+
+----
+
+### It's precisely `<type_traits>`!
 
 ```c++
-TODO
+add_pointer  -> std::add_pointer
+add_const    -> std::add_const
+add_volatile -> std::add_volatile
+// ...
+
+is_pointer   -> std::is_pointer
+is_const     -> std::is_const
+is_volatile  -> std::is_volatile
+// ...
+
+operator==  -> std::is_same
+// ...
 ```
 
-====================
+----
 
-## But what does that buy us?
-
-====================
-
-### Full language can be used
-
-__Before__
-%%how-full_language-mpl%%
+### There's a generic lifting process
 
 ----
 
-__After__
-%%how-full_language-hana%%
+### Let's reconsider:
 
-====================
-
-### Only one library is required
-
-__Before__
-%%how-onelib-mpl%%
+```c++
+template <typename T>
+Type<T*> add_pointer(Type<T>) { return {}; }
+```
 
 ----
 
-__After__
-%%how-onelib-hana%%
+### This could also be written as
+
+```c++
+template <typename T>
+auto add_pointer(Type<T>) {
+    return type<typename std::add_pointer<T>::type>;
+}
+```
 
 ----
 
-### Sugar
+### There's a pattern
 
-%%how-onelib-hana-sugar%%
+```c++
+template <template <typename ...> class F>
+struct Metafunction {
+    template <typename ...T>
+    auto operator()(Type<T> ...) const {
+        return type<
+            typename F<T...>::type
+        >;
+    }
+};
+
+Metafunction<std::add_pointer> add_pointer{};
+
+auto i = type<int>;
+auto i_ptr = add_pointer(i);
+static_assert(is_pointer(i_ptr), "");
+```
+
+----
+
+### Sugar, again
+
+```c++
+template <template <typename ...> class F>
+constexpr Metafunction<F> metafunction{};
+
+auto add_pointer = metafunction<std::add_pointer>;
+auto remove_reference = metafunction<std::remove_reference>;
+auto add_const = metafunction<std::add_const>;
+// ...
+```
 
 ====================
 
 ### Example: type safe `printf`
 
-%%how-printf-usage%%
+%%printf-usage%%
 
 ----
 
 ### Wrong argument type? No problem
 
-%%how-printf-wrong_type%%
+%%printf-wrong_type%%
 
 ```c++
 [...]/how-printf.cpp:38:5: error: static_assert failed
@@ -719,7 +971,7 @@ __After__
 
 ### Wrong number of arguments? No problem
 
-%%how-printf-wrong_narg%%
+%%printf-wrong_narg%%
 
 ```c++
 [...]/how-printf.cpp:33:3: error: static_assert failed
@@ -732,7 +984,7 @@ __After__
 
 ### Step 1: Specify format characters
 
-%%how-printf-formats%%
+%%printf-formats%%
 
 ----
 
@@ -797,38 +1049,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ### Step 5: Check the type of each argument
 
-%%how-printf-core%%
-
-====================
-
-### So we manipulate types as values
-
-----
-
-### What about integral constants?
-
-%%how-integral%%
-
-----
-
-### Sugar
-
-%%how-integral-sugar%%
-
-----
-
-### More sugar
-
-```c++
-template <char ...c>
-constexpr auto operator"" _c() {
-    // parse the characters and return an integral_constant
-}
-
-static_assert(1_c + 4_c == 5_c, "");
-```
-
-<!-- TODO: Make a bridge between the last section and the end of the presentation -->
+%%printf-core%%
 
 ==============================================================================
 

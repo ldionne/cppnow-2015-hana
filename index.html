@@ -52,358 +52,275 @@ Louis Dionne, C++Now 2015
 
 ### Such a cocky title
 
-====================
-
-## Outline
-- What?
-- Why?
-- How?
-
-<!-- Define new MathJax commands here to avoid seeing them load on the first slide. -->
-$\newcommand{\cc}[1]{{\tt #1}}$
-
 ==============================================================================
 
-### What are the types of sequences in C++?
+## Computational dimensions in C++
+
+<!--
+If needed, define new MathJax commands just below this to avoid seeing
+them load on the first slide.
+-->
+
+<!--
+TODO: For each type of non-classic computational dimension,
+show a simple use case
+-->
 
 ====================
 
-### Homogeneous dynamic sequences (classic)
+### Homogeneous + dynamic (classic)
 
-#### Extensible
+----
 
-```c++
-std::vector<int> seq;
-int i = 0;
-while (dynamic_condition())
-  seq.push_back(i++);
-```
-
-#### Fixed-size
+### Runtime sequences
 
 ```c++
-std::array<std::string, 10> seq;
-for (std::string& s: seq)
-  s = user_input();
+std::vector<int> ints{1, 2, 3, 4};
 ```
 
 ----
 
-### Homogeneous `constexpr` sequences
-
-#### Extensible
+### Runtime functions
 
 ```c++
-TODO: tricky constexpr linked list
+std::string f(int i) {
+  return std::to_string(i * i);
+}
 ```
 
-#### Fixed-size
+----
+
+### Runtime algorithms
 
 ```c++
-constexpr std::array<int, 10> seq = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-constexpr int i = seq[3];
+std::vector<std::string> strings;
+std::transform(ints.begin(), ints.end(),
+               std::back_inserter(strings), f);
 ```
 
 ====================
 
-### Heterogeneous dynamic sequences
+### Homogeneous + `constexpr`
 
-#### Extensible
+----
 
-impossible
-
-#### Fixed-size
+### `constexpr` sequences
 
 ```c++
-std::tuple<std::string, std::vector<int>> seq{user_input(), stuff()};
-std::string& s = std::get<0>(seq);
+constexpr std::array<int, 4> ints{1, 2, 3, 4};
 ```
 
 ----
 
-### Heterogeneous `constexpr` sequences
-
-#### Extensible
-
-impossible
-
-#### Fixed-size
+### `constexpr` functions
 
 ```c++
-constexpr std::tuple<int, char, float> seq = {1, 'c', 3.4f};
-constexpr char c = std::get<1>(seq);
+constexpr int factorial(int n) {
+  return n == 0 ? 1 : n * factorial(n - 1);
+}
 ```
 
-====================
+----
 
-### Type-level sequences
+### `constexpr` algorithms
 
 ```c++
-using seq = vector<int, char, float, int_<3>>;
-using c = at_c<seq, 1>::type;
+template <typename T, std::size_t N, typename F>
+  constexpr std::array<std::result_of_t<F(T)>, N>
+transform(std::array<T, N> array, F f) {
+  std::array<std::result_of_t<F(T)>, N> result{};
+  for (std::size_t i = 0; i < N; ++i)
+    result[i] = f(array[i]);
+  return result;
+}
+
+constexpr std::array<int, 4> ints{1, 2, 3, 4};
+constexpr std::array<int, 4> facts = transform(ints, factorial);
+static_assert(facts == std::array<int, 4>{1, 2, 6, 24}, "");
 ```
 
 ====================
 
-### `constexpr` and heterogeneity are orthogonal
-
-<!-- TODO: Harmonize above this with below this -->
-
-====================
-
-## What are type-level computations?
-
-----
-
-### Metafunctions
-
-```cpp
-template <typename T>
-struct add_pointer {
-    using type = T*;
-};
-
-using result = add_pointer<int>::type;
-```
-
-----
-
-### Sequences (of types)
-
-```cpp
-template <typename ...T>
-struct vector;
-
-using types = vector<int, char, float, void>;
-```
-
-----
-
-### Algorithms (on sequences of types)
-
-```cpp
-template <typename Vector>
-struct front;
-
-template <typename T, typename ...Ts>
-struct front<vector<T, Ts...>> {
-    using type = T;
-};
-
-using types = vector<int, char, float, void>;
-using first = front<types>::type; // int
-```
-
-----
-
-### More algorithms
-
-```cpp
-template <typename Vector, template <typename ...> class Metafunction>
-struct transform;
-
-template <typename ...T, template <typename ...> class Metafunction>
-struct transform<vector<T...>, Metafunction> {
-    using type = vector<typename Metafunction<T>::type...>;
-};
-
-using types = vector<int, char, float, void>;
-using pointers = transform<types, add_pointer>::type;
-// vector<int*, char*, float*, void*>
-```
-
-====================
-
-### What is it useful for?
-
-<!-- TODO: Find a simple but useful use case -->
-
-====================
-
-## What are heterogeneous computations?
-
-----
-
-### Heterogeneous functions
-
-```cpp
-struct widen {
-    long double operator()(long double x) const { return x; }
-    long double operator()(double x) const { return x; }
-    long double operator()(float x) const { return x; }
-
-    long long operator()(int x) const { return x; }
-    long long operator()(long x) const { return x; }
-    long long operator()(long long x) const { return x; }
-
-    // etc...
-};
-
-long double x = widen{}(3.4);
-long long y = widen{}(23);
-```
+### Heterogeneous + dynamic (Fusion)
 
 ----
 
 ### Heterogeneous sequences
 
-```cpp
-template <typename ...T>
-struct vector {
-    // essentially a std::tuple
+```c++
+std::tuple<int, std::string, float> xs{1, "abc", 3.4f};
+
+fusion::vector<long, std::string> ys{5l, "hello"};
+```
+
+----
+
+### Heterogeneous functions
+
+```c++
+struct twice {
+  template <typename T>
+  auto operator()(T t) const -> decltype(t + t) {
+    return t + t;
+  }
 };
-
-vector<int, long, float> values = {1, 2l, 3.4f};
 ```
 
 ----
 
-### Algorithms (on heterogeneous sequences)
+### Heterogeneous algorithms
 
-```cpp
-template <typename T, typename ...Ts>
-T front(vector<T, Ts...> v) {
-    // ...
-}
-
-vector<int, long, float> values = {1, 2l, 3.4f};
-int one = front(values);
-```
-
-----
-
-### More algorithms
-
-```cpp
-template <typename ...T, typename F>
-auto // <-- depends on the return type of f on each element
-transform(vector<T...> v, F f) {
-    // ...
-}
-
-vector<int, long, float> values = {1, 2l, 3.4f};
-vector<long long, long long, long double> wide_values =
-                            transform(values, widen{});
+```c++
+fusion::vector<long, std::string> ys{5l, "hello"};
+auto zs = fusion::transform(ys, twice{});
+assert(zs == fusion::vector<long, std::string>{10l, "hellohello"});
 ```
 
 ====================
 
-### What is it useful for?
+### Heterogeneous + `constexpr`
 
-<!-- TODO: Find a simple but useful use case -->
+----
+
+### Heterogeneous `constexpr` sequences
+
+```c++
+constexpr std::tuple<int, long, float> xs{1, 3l, 3.4f};
+```
+
+----
+
+### Heterogeneous `constexpr` functions
+
+```c++
+struct twice {
+  template <typename T>
+  constexpr auto operator()(T t) const -> decltype(t + t) {
+    return t + t;
+  }
+};
+```
+
+----
+
+### Heterogeneous `constexpr` algorithms
+
+```c++
+TODO
+```
+
+====================
+
+### Type-level (MPL)
+
+----
+
+### Type-level sequences
+
+```c++
+TODO
+```
+
+----
+
+### Type-level functions
+
+```c++
+TODO
+```
+
+----
+
+### Type-level algorithms
+
+```c++
+TODO
+```
+
+====================
+
+### `constexpr` &nbsp; $\perp$ &nbsp; heterogeneity
+
+<!-- TODO: Harmonize above this with below this -->
 
 ====================
 
 ## What do I propose?
-### Merge both <!-- .element class="fragment" -->
+### Merge type-level and heterogeneous <!-- .element class="fragment" -->
 
 ==============================================================================
 
 ## Why?
 
+Note:
+This section contains a couple of motivating examples to pique the curiosity.
+The examples should be skimmed over to avoid losing time and needing to
+explain details that will be covered later.
+
+<!-- TODO
+Reorder the examples and maybe add 1-2 examples. Examples to consider:
+- json generation
+- indexed sort
+- hana::sfinae function
+-->
+
 ====================
 
 ### C++14 is a serious game changer
+#### $\implies$ We can do better now
 
 ----
 
 ### Automatically deduced return type
 
+```c++
+template <typename X>
+auto f(X x) {
+  // ...
+  return z; // return type deduced from z
+}
+```
+
 ----
 
 ### Generalized constexpr
+
+```c++
+constexpr unsigned long long factorial(unsigned long long n) {
+  unsigned long long result = 1;
+  while (n != 0)
+    result *= n--;
+  return result;
+}
+```
 
 ----
 
 ### Generic lambdas
 
+```c++
+auto xs = make_tuple("C++Now", 2015);
+unpack(xs, [](auto a, auto b) {
+  std::cout << a << ' ' << b << std::endl;
+});
+```
+
 ----
 
 ### Variable templates
 
+```c++
+template <typename T>
+constexpr T pi = ...;
+
+float ok_precision = pi<float>;
+double good_precision = pi<double>;
+long double awesome_precision = pi<long double>;
+```
+
 ====================
 
 ### See for yourself
-
-====================
-
-### Loop unrolling: then
-
-```cpp
-__attribute__((noinline)) void f() { }
-
-int main() {
-    #pragma PLZ UNROLL
-    for (int i = 0; i != 10; ++i)
-        f();
-}
-```
-
-----
-
-### Loop unrolling: now
-
-```cpp
-__attribute__((noinline)) void f() { }
-
-int main() {
-    int_<10>.times(f);
-}
-```
-
-----
-
-### Skeptical?
-
-```
-_main:
-    ; snip
-    push    rbp
-    mov rbp, rsp
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    xor eax, eax
-    pop rbp
-    ret
-```
-
-====================
-
-### Mapping types to values: then
-
-```cpp
-auto map = make_map<char, int, long, float, double, void>(
-  "char", "int", "long", "float", "double", "void"
-);
-
-std::string i = at_key<int>(map);
-assert(i == "int");
-```
-
-----
-
-### Mapping types to values: now
-
-```cpp
-auto map = make_map(
-  make_pair(type<char>,   "char"),
-  make_pair(type<int>,    "int"),
-  make_pair(type<long>,   "long"),
-  make_pair(type<float>,  "float"),
-  make_pair(type<double>, "double")
-);
-
-std::string i = map[type<int>];
-assert(i == "int");
-```
 
 ====================
 
@@ -452,10 +369,251 @@ static_assert(has_xxx<Foo>::value, "");
 auto has_xxx = is_valid([](auto t) -> decltype(t.xxx) {});
 
 struct Foo { int xxx; };
-static_assert(has_xxx(type<Foo>), "");
+Foo foo{1};
+
+static_assert(has_xxx(foo), "");
+static_assert(!has_xxx("abcdef"), "");
 ```
 
 ====================
+
+### Introspection: then
+
+```cpp
+namespace keys {
+  struct name;
+  struct age;
+}
+
+BOOST_FUSION_DEFINE_ASSOC_STRUCT(
+  /* global scope */, Person,
+  (std::string, name, keys::name)
+  (int, age, keys::age)
+)
+
+int main() {
+    Person john{"John", 30};
+    std::string name = at_key<keys::name>(john);
+    int age = at_key<keys::age>(john);
+}
+```
+
+----
+
+### Introspection: now
+
+```cpp
+struct Person {
+  BOOST_HANA_DEFINE_STRUCT(Person,
+    (std::string, name),
+    (int, age)
+  );
+};
+
+int main() {
+  Person john{"John", 30};
+  std::string name = at_key(john, BOOST_HANA_STRING("name"));
+  int age = at_key(john, BOOST_HANA_STRING("age"));
+}
+```
+
+====================
+
+### Compile-times: then and now
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.including.compile.json"></div>
+
+----
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.fold_left.compile.json"></div>
+
+----
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.transform.compile.json"></div>
+
+====================
+
+## Still not convinced?
+### Here's more
+
+====================
+
+### Sorting at compile-time: then
+
+```cpp
+template <typename Sequence, typename Pred>
+struct sort;
+
+template <typename Pred, typename Pivot>
+struct sort_pred {
+  template <typename T>
+  using apply = apply2<Pred, T, Pivot>;
+};
+
+template <typename Sequence, typename Pred>
+struct sort_impl {
+  using pivot = typename begin<Sequence>::type;
+  using parts = typename partition<
+    iterator_range<typename next<pivot>::type,
+                   typename end<Sequence>::type>
+    , protect<sort_pred<Pred, typename deref<pivot>::type>>
+    , back_inserter<vector<>>
+    , back_inserter<vector<>>
+  >::type;
+
+  using part1 = typename push_back<
+    typename sort<typename parts::first, Pred>::type,
+    typename deref<pivot>::type
+  >::type;
+
+  using part2 = typename sort<typename parts::second, Pred>::type;
+
+  using type = typename insert_range<
+    part1, typename end<part1>::type, part2
+  >::type;
+};
+
+template <typename Sequence, typename Pred>
+struct sort
+  : eval_if<empty<Sequence>,
+      identity<Sequence>,
+      sort_impl<Sequence, Pred>
+  >
+{ };
+```
+
+<!-- TODO: The code does not fit in one slide -->
+
+----
+
+### Sorting at compile-time: now
+
+```cpp
+template <typename Xs, typename Pred>
+auto sort(Xs xs, Pred pred) {
+  return eval_if(length(xs) < size_t<2>,
+    lazy(xs),
+    lazy([=](auto xs) {
+      auto pivot = head(xs);
+      auto parts = partition(tail(xs), partial(pred, pivot));
+      return concat(
+        append(sort(second(parts), pred), pivot),
+        sort(first(parts), pivot)
+      );
+    })(xs)
+  );
+}
+```
+
+====================
+
+## We must rethink metaprogramming
+
+====================
+
+## But how?
+
+Note:
+Hopefully, the audience should be convinced by now that there's a better way
+to write metaprograms. My goal is now to convince them that I found it.
+
+==============================================================================
+
+### What are integral constants?
+
+<!--
+TODO:
+  - Make the transition between the How? and this more smooth
+  - Explain how argument passing decays constexprness.
+  - Explain how constexprness can be retained by encoding the value in the type
+  - Ok, so everybody does arithmetic with integers, be they constexpr or not.
+    Why shouldn't we able to do the same when they are encoded as types?
+  - Show a slide with MPL style arithmetic operators. Then, implement them
+    like in Hana.
+-->
+
+----
+
+```c++
+template <typename T, T v>
+struct integral_constant {
+  using type = integral_constant;
+  using value_type = T;
+  static constexpr value_type value = v;
+  constexpr operator value_type() const noexcept { return value; }
+  constexpr value_type operator()() const noexcept { return value; }
+};
+```
+
+Note:
+This section introduces extensions to `std::integral_constant` that follow
+the general philosophy of the paradigm shift. I am preparing the grounds for
+the next section, which will introduce the type/value unification per-se.
+
+----
+
+### What if?
+
+```c++
+template <typename V, V v, typename U, U u>
+constexpr auto operator+(integral_constant<V, v>, integral_constant<U, u>)
+{ return integral_constant<decltype(v + u), v + u>{}; }
+
+template <typename V, V v, typename U, U u>
+constexpr auto operator==(integral_constant<V, v>, integral_constant<U, u>)
+{ return integral_constant<bool, v == u>{}; }
+
+// ...
+```
+
+----
+
+### TODO: Title
+
+```c++
+static_assert(integral_constant<int, 1>{} + integral_constant<int, 4>{}
+                                          ==
+                            integral_constant<int, 5>{}
+, "");
+```
+
+----
+
+### Pass me the sugar, please
+
+```c++
+template <int i>
+constexpr integral_constant<int, i> int_{};
+
+static_assert(int_<1> + int_<4> == int_<5>, "");
+```
+
+----
+
+### More sugar
+
+```c++
+template <char ...c>
+constexpr auto operator"" _c() {
+  // parse the characters and return an integral_constant
+}
+
+static_assert(1_c + 4_c == 5_c, "");
+```
+
+====================
+
+### Euclidean distance
+
+$$
+  \mathrm{distance}\left((x_1, y_1), (x_2, y_2)\right)
+      := \sqrt{(x_1 - x_2)^2 + (y_1 - y_2)^2}
+$$
+
+----
 
 ### Compile-time arithmetic: then
 
@@ -517,221 +675,109 @@ assert(distance(p1, p2) == 5); // same function works!
 
 ====================
 
-### Sorting at compile-time: then
+### Pretty cool? Wait!
 
-```cpp
-template <typename Sequence, typename Pred>
-struct sort;
+```c++
+template <typename T, T n>
+struct integral_constant {
+  // usual stuff
 
-template <typename Pred, typename Pivot>
-struct sort_pred {
-  template <typename T>
-  using apply = apply2<Pred, T, Pivot>;
+  template <typename F>
+  void times(F&& f) const {
+    f(); f(); ... f(); // n times
+  }
 };
+```
 
-template <typename Sequence, typename Pred>
-struct sort_impl {
-  using pivot = typename begin<Sequence>::type;
-  using parts = typename partition<
-    iterator_range<typename next<pivot>::type,
-                   typename end<Sequence>::type>
-    , protect<sort_pred<Pred, typename deref<pivot>::type>>
-    , back_inserter<vector<>>
-    , back_inserter<vector<>>
-  >::type;
+----
 
-  using part1 = typename push_back<
-    typename sort<typename parts::first, Pred>::type,
-    typename deref<pivot>::type
-  >::type;
+### Loop unrolling: then
 
-  using part2 = typename sort<typename parts::second, Pred>::type;
+```cpp
+__attribute__((noinline)) void f() { }
 
-  using type = typename insert_range<
-    part1, typename end<part1>::type, part2
-  >::type;
+int main() {
+    #pragma PLZ UNROLL
+    for (int i = 0; i != 10; ++i)
+        f();
+}
+```
+
+----
+
+### Loop unrolling: now
+
+```cpp
+__attribute__((noinline)) void f() { }
+
+int main() {
+    int_<10>.times(f);
+}
+```
+
+----
+
+### Skeptical?
+
+```
+_main:
+    ; snip
+    push    rbp
+    mov rbp, rsp
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    call __Z1fv
+    xor eax, eax
+    pop rbp
+    ret
+```
+
+====================
+
+### So far so good. Let's push
+
+```c++
+template <typename ...T>
+struct tuple {
+  // ...
+
+  template <typename N>
+  constexpr decltype(auto) operator[](N const&) {
+    return std::get<N::value>(*this);
+  }
 };
-
-template <typename Sequence, typename Pred>
-struct sort
-  : eval_if<empty<Sequence>,
-      identity<Sequence>,
-      sort_impl<Sequence, Pred>
-  >
-{ };
-```
-
-<!-- TODO: The code does not fit in one slide -->
-
-----
-
-### Sorting at compile-time: now
-
-```cpp
-auto sort = fix([](auto sort, auto xs, auto pred) {
-  return eval_if(length(xs) < size_t<2>,
-    lazy(xs),
-    lazy([=](auto xs) {
-      auto pivot = head(xs);
-      auto rest = tail(xs);
-      auto parts = partition(rest, partial(pred, pivot));
-      return concat(
-        sort(second(parts), pred),
-        prepend(pivot, sort(first(parts), pivot))
-      );
-    })(xs)
-  );
-});
-```
-
-====================
-
-### Introspection: then
-
-```cpp
-namespace keys {
-    struct name;
-    struct age;
-}
-
-namespace demo { }
-BOOST_FUSION_DEFINE_ASSOC_STRUCT( // must appear at global scope
-    (demo), Person,
-    (std::string, name, keys::name)
-    (int, age, keys::age)
-)
-
-int main() {
-    demo::Person john{"John", 30};
-    std::string name = at_key<keys::name>(john);
-    int age = at_key<keys::age>(john);
-}
 ```
 
 ----
-
-### Introspection: now
-
-```cpp
-namespace demo {
-    struct Person {
-        BOOST_HANA_DEFINE_STRUCT(Person,
-            (std::string, name),
-            (int, age)
-        );
-    };
-}
-
-int main() {
-    demo::Person john{"John", 30};
-    std::string name = at_key(john, BOOST_HANA_STRING("name"));
-    int age = at_key(john, BOOST_HANA_STRING("age"));
-}
-```
-
-====================
-
-### Compile-times: then and now
-
-<!-- .slide: data-state="haschart" -->
-<div class="benchmark-chart" data-dataset="benchmark.including.compile.json"></div>
-
-----
-
-<!-- .slide: data-state="haschart" -->
-<div class="benchmark-chart" data-dataset="benchmark.fold_left.compile.json"></div>
-
-----
-
-<!-- .slide: data-state="haschart" -->
-<div class="benchmark-chart" data-dataset="benchmark.transform.compile.json"></div>
-
-====================
-
-<!--
-TODO: The example is bad; basically it only shows that `unpack` is
-implemented in Hana.
--->
-
-### Calling a function with a `tuple`: then
-
-```cpp
-template <typename Tuple, typename F, std::size_t ...i>
-constexpr decltype(auto)
-unpack_impl(Tuple&& tuple, F&& f, std::index_sequence<i...>) {
-  return std::forward<F>(f)(std::get<i>(std::forward<Tuple>(tuple))...);
-}
-
-template <typename Tuple, typename F>
-constexpr decltype(auto) unpack(Tuple&& tuple, F&& f) {
-    constexpr std::size_t n = std::tuple_size<
-        std::remove_reference_t<Tuple>
-    >::value;
-    return unpack_impl(std::forward<Tuple>(tuple), std::forward<F>(f),
-                       std::make_index_sequence<n>{});
-}
-
-void f(int a, double b, std::string c) {
-  std::cout << a << ":" << b << ":" << c << std::endl;
-}
-
-int main() {
-  unpack(std::make_tuple(1, 3.4, "abcdef"), f);
-}
-```
-
-----
-
-### Calling a function with a `tuple`: now
-
-```cpp
-void f(int a, double b, std::string c) {
-  std::cout << a << ":" << b << ":" << c << std::endl;
-}
-
-int main() {
-  unpack(make_tuple(1, 3.4, "abcdef"), f);
-}
-```
-
-====================
-
-## Still not convinced?
-### Here's more
-
-====================
 
 ### Accessing an element of a tuple: then
 
-```cpp
-std::tuple<int, char, float> values = {1, 'x', 3.4f};
+```c++
+tuple<int, char, float> values = {1, 'x', 3.4f};
 char x = std::get<1>(values);
 ```
-
 ----
 
 ### Accessing an element of a tuple: now
 
-```cpp
-hana::_tuple<int, char, float> values = {1, 'x', 3.4f};
+```c++
+tuple<int, char, float> values = {1, 'x', 3.4f};
 char x = values[1_c];
 ```
 
-====================
-
-## We must rethink metaprogramming
-
 ==============================================================================
 
-## But how?
+### What are types?
 
 Note:
-Hopefully you are now convinced that there's a better way to write metaprograms.
-Let me try to convince you I found it.
-
-====================
-
-### What are types?
+This section introduces the type/value unification.
 
 ----
 
@@ -785,42 +831,26 @@ assert(is_pointer(t));
 
 ====================
 
-### It turns out...
-#### The interface is precisely `<type_traits>`
-
-```c++
-add_pointer  -> std::add_pointer
-add_const    -> std::add_const
-add_volatile -> std::add_volatile
-// ...
-
-is_pointer   -> std::is_pointer
-is_const     -> std::is_const
-is_volatile  -> std::is_volatile
-// ...
-
-operator==  -> std::is_same
-// ...
-```
-
-----
-
 ### Cool idea, but useless for metaprogramming
 
 ====================
 
 ### Easy fix: use templates
 
-```cpp
+```c++
 template <typename T>
 class Type { /* nothing */ };
 ```
+
+Note:
+Make explicit the link between this and what we did in the previous section
+with integral constants.
 
 ----
 
 ### Easy fix: use templates
 
-```cpp
+```c++
 template <typename T>
 Type<T*> add_pointer(Type<T>) { return {}; }
 
@@ -835,17 +865,23 @@ constexpr bool is_pointer(Type<T*>) { return true; }
 
 ### Tadam!
 
-```cpp
+```c++
 Type<int> i{};
 auto i_ptr = add_pointer(i);
 static_assert(is_pointer(i_ptr), "");
 ```
 
+<!--
+TODO:
+There are going to be objections on why `i_ptr` isn't constexpr.
+Find out why this works even if we're reading from `i_ptr` in `is_pointer`.
+-->
+
 ----
 
-### Pass me the sugar, please
+### Sugar
 
-```cpp
+```c++
 template <typename T>
 constexpr Type<T> type{};
 
@@ -856,143 +892,19 @@ static_assert(is_pointer(i_ptr), "");
 
 ====================
 
-### A generic lifting process
-
-#### Let's reconsider:
-
-```c++
-template <typename T>
-Type<T*> add_pointer(Type<T>) { return {}; }
-```
-
-----
-
-#### Could also be written as:
-
-```c++
-template <typename T>
-auto add_pointer(Type<T>) {
-    return type<typename std::add_pointer<T>::type>;
-}
-```
-
-----
-
-### There's a pattern!
-
-```cpp
-template <template <typename ...> class F>
-struct Metafunction {
-    template <typename ...T>
-    auto operator()(Type<T> ...) const {
-        return type<
-            typename F<T...>::type
-        >;
-    }
-};
-
-Metafunction<std::add_pointer> add_pointer{};
-
-auto i = type<int>;
-auto i_ptr = add_pointer(i);
-static_assert(is_pointer(i_ptr), "");
-```
-
-----
-
-### Sugar, again
-
-```cpp
-template <template <typename ...> class F>
-constexpr Metafunction<F> metafunction{};
-
-auto add_pointer = metafunction<std::add_pointer>;
-auto remove_reference = metafunction<std::remove_reference>;
-auto add_const = metafunction<std::add_const>;
-// ...
-```
-
-====================
-
-### So we can represent types as values
-
-----
-
-### But how can we get back the types?
-
-```c++
-auto t = add_pointer(type<int>); // could be a complex type computation
-using T = the-type-represented-by-t;
-// do something useful with T here...
-```
-
-----
-
-### `decltype` baby!
-
-```c++
-template <typename T>
-struct Type {
-    using type = T;
-};
-
-auto t = add_pointer(type<int>);
-using T = decltype(t)::type;
-static_assert(std::is_same<T, int*>{}, "");
-// do something useful with T here...
-```
-
-====================
-
-### 3 step process
-
-1. Wrap types into `type<...>`
-2. Perform computations
-3. Unwrap with `decltype(...)::type`
-
-----
-
-## Isn't that cumbersome?
-### Not really <!-- .element class="fragment" -->
-
-----
-
-### Only done at some thin boundaries
-
-```c++
-auto t = type<T>;
-auto result = huge_type_computation(t);
-using Result = decltype(result)::type;
-```
-
-<!-- TODO: Better example -->
-
-----
-
-### Not always required
-
-```c++
-auto t = type<T>;
-auto result = f(t);
-static_assert(result == type<Something>, "");
-```
-
-<!-- TODO: Better example -->
-
-Note:
-We did not have to do the third step because we did not need the type itself.
-
-----
-
-### Converting between MPL and Fusion is _way_ more painful
-
-```c++
-TODO
-```
-
-====================
-
 ## But what does that buy us?
+
+====================
+
+### Types are now first class citizens!
+
+```c++
+auto ts = make_tuple(type<int>, type<char>, type<void>);
+auto c = ts[1_c];
+
+// sugar:
+auto ts = tuple_t<int, char, void>;
+```
 
 ====================
 
@@ -1036,24 +948,6 @@ auto ws = fusion::filter_if<std::is_integral<mpl::_1>>(vs);
 __After__
 ```cpp
 // types
-auto ts = make_tuple(type<int>, type<char&>, type<void*>);
-auto us = filter(ts, [](auto t) {
-  return or_(is_pointer(t), is_reference(t));
-});
-
-// values
-auto vs = make_tuple(1, 'c', nullptr, 3.5);
-auto ws = filter(vs, [](auto t) {
-  return is_integral(type<decltype(t)>);
-});
-```
-
-----
-
-### Sugar
-
-```cpp
-// types
 auto ts = tuple_t<int, char&, void*>;
 auto us = filter(ts, [](auto t) {
   return or_(is_pointer(t), is_reference(t));
@@ -1064,6 +958,255 @@ auto vs = make_tuple(1, 'c', nullptr, 3.5);
 auto ws = filter(vs, [](auto t) {
   return is_integral(t);
 });
+```
+
+====================
+
+### Unified syntax means more reuse
+#### (Amphibious EDSL using Boost.Proto)
+
+```cpp
+auto expr = (_1 - _2) / _2;
+
+// compile-time computations
+static_assert(decltype(evaluate(expr, 6_c, 2_c))::value == 2, "");
+
+// runtime computations
+int i = 6, j = 2;
+assert(evaluate(expr, i, j) == 2);
+```
+
+====================
+
+### Unified syntax means more consistency
+
+__Before__
+```cpp
+auto map = make_map<char, int, long, float, double, void>(
+  "char", "int", "long", "float", "double", "void"
+);
+
+std::string i = at_key<int>(map);
+assert(i == "int");
+```
+
+----
+
+__After__
+```cpp
+auto map = make_map(
+  make_pair(type<char>,   "char"),
+  make_pair(type<int>,    "int"),
+  make_pair(type<long>,   "long"),
+  make_pair(type<float>,  "float"),
+  make_pair(type<double>, "double")
+);
+
+std::string i = map[type<int>];
+assert(i == "int");
+```
+
+====================
+
+### So we can represent types as values
+
+----
+
+### But how can we get back the types?
+
+```c++
+auto t = add_pointer(type<int>); // could be a complex type computation
+using T = the-type-represented-by-t;
+// do something useful with T here...
+```
+
+----
+
+### Easy fix: use nested alias
+
+```c++
+template <typename T>
+struct Type {
+    using type = T;
+};
+```
+
+----
+
+### And then `decltype`
+
+```c++
+auto t = add_pointer(type<int>);
+using T = decltype(t)::type;
+static_assert(std::is_same<T, int*>{}, "");
+// do something useful with T here...
+```
+
+====================
+
+### 3 step process
+
+1. Wrap types into `type<...>`
+2. Perform computations
+3. Unwrap with `decltype(...)::type`
+
+----
+
+## Isn't that cumbersome?
+### Not really <!-- .element class="fragment" -->
+
+----
+
+### Only done at some thin boundaries
+
+```c++
+auto t = type<T>;
+auto result = huge_type_computation(t);
+using Result = decltype(result)::type;
+```
+
+----
+
+### Not always required
+
+```c++
+auto t = type<T>;
+auto result = type_computation(t);
+static_assert(result == type<Something>, "");
+```
+
+Note:
+We did not have to do the third step because we did not need the type itself.
+
+----
+
+### Even then, it's not that bad
+
+----
+
+### Finding smallest type: then
+
+```cpp
+template <typename ...T>
+struct smallest
+  : deref<
+    typename min_element<
+      vector<T...>, less<sizeof_<_1>, sizeof_<_2>>
+    >::type
+  >
+{ };
+
+template <typename ...T>
+using smallest_t = typename smallest<T...>::type;
+
+static_assert(std::is_same<
+  smallest_t<char, long, long double>, char
+>::value, "");
+```
+
+----
+
+### Finding smallest type: now
+
+```cpp
+template <typename ...T>
+auto smallest = minimum(tuple_t<T...>, [](auto t, auto u) {
+  return sizeof_(t) < sizeof_(u);
+});
+
+template <typename ...T>
+using smallest_t = typename decltype(smallest<T...>)::type;
+
+static_assert(std::is_same<
+  smallest_t<char, long, long double>, char
+>::value, "");
+```
+
+Note:
+Also note that this is a very good example of a short type-only computation,
+which is where we would expect the new paradigm to suffer the most.
+
+====================
+
+### If types are objects, what would be their interface?
+
+----
+
+### It's precisely `<type_traits>`!
+
+```c++
+add_pointer  -> std::add_pointer
+add_const    -> std::add_const
+add_volatile -> std::add_volatile
+// ...
+
+is_pointer   -> std::is_pointer
+is_const     -> std::is_const
+is_volatile  -> std::is_volatile
+// ...
+
+operator==  -> std::is_same
+// ...
+```
+
+----
+
+### There's a generic lifting process
+
+----
+
+### Let's reconsider:
+
+```c++
+template <typename T>
+Type<T*> add_pointer(Type<T>) { return {}; }
+```
+
+----
+
+### This could also be written as
+
+```c++
+template <typename T>
+auto add_pointer(Type<T>) {
+    return type<typename std::add_pointer<T>::type>;
+}
+```
+
+----
+
+### There's a pattern
+
+```c++
+template <template <typename ...> class F>
+struct Metafunction {
+    template <typename ...T>
+    auto operator()(Type<T> ...) const {
+        return type<
+            typename F<T...>::type
+        >;
+    }
+};
+
+Metafunction<std::add_pointer> add_pointer{};
+
+auto i = type<int>;
+auto i_ptr = add_pointer(i);
+static_assert(is_pointer(i_ptr), "");
+```
+
+----
+
+### Sugar, again
+
+```c++
+template <template <typename ...> class F>
+constexpr Metafunction<F> metafunction{};
+
+auto add_pointer = metafunction<std::add_pointer>;
+auto remove_reference = metafunction<std::remove_reference>;
+auto add_const = metafunction<std::add_const>;
+// ...
 ```
 
 ====================
@@ -1203,59 +1346,6 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
   return std::printf(to<char const*>(fmt), args...);
 };
 ```
-
-====================
-
-### So we manipulate types as values
-
-----
-
-### What about integral constants?
-
-```cpp
-template <typename T, T v>
-struct integral_constant { /* usual stuff */ };
-template <typename V, V v, typename U, U u>
-constexpr auto operator+(integral_constant<V, v>, integral_constant<U, u>)
-{ return integral_constant<decltype(v + u), v + u>{}; }
-
-template <typename V, V v, typename U, U u>
-constexpr auto operator==(integral_constant<V, v>, integral_constant<U, u>)
-{ return integral_constant<bool, v == u>{}; }
-
-// ...
-
-static_assert(integral_constant<int, 1>{} + integral_constant<int, 4>{}
-                                          ==
-                            integral_constant<int, 5>{}
-, "");
-```
-
-----
-
-### Sugar
-
-```cpp
-template <int i>
-constexpr integral_constant<int, i> int_{};
-
-static_assert(int_<1> + int_<4> == int_<5>, "");
-```
-
-----
-
-### More sugar
-
-```c++
-template <char ...c>
-constexpr auto operator"" _c() {
-    // parse the characters and return an integral_constant
-}
-
-static_assert(1_c + 4_c == 5_c, "");
-```
-
-<!-- TODO: Make a bridge between the last section and the end of the presentation -->
 
 ==============================================================================
 
