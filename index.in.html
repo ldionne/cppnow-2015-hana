@@ -271,18 +271,6 @@ This section contains a couple of motivating examples to pique the curiosity.
 The examples should be skimmed over to avoid losing time and explaining
 details that will be covered later.
 
-<!-- TODO
-Reorder the examples and maybe add 1-2 examples. Examples to consider:
-- json generation
-- indexed sort
-- hana::sfinae function
-- common type
-
-- The examples must actually show how merging types/values is better, not only
-  how switching to C++14 is better. The current examples do not really support
-  the merge of the two quadrants I'm proposing.
--->
-
 ====================
 
 ### C++14 is a serious game changer
@@ -367,6 +355,24 @@ constexpr unsigned long long factorial(unsigned long long n) {
 
 ====================
 
+### Sorting at compile-time: then
+
+%%sorting-then1%%
+
+----
+
+### Sorting at compile-time: then
+
+%%sorting-then2%%
+
+----
+
+### Sorting at compile-time: now
+
+%%sorting-now%%
+
+====================
+
 ### Introspection: then
 
 %%introspection-then%%
@@ -376,6 +382,11 @@ constexpr unsigned long long factorial(unsigned long long n) {
 ### Introspection: now
 
 %%introspection-now%%
+
+====================
+
+## Still not convinced?
+### Here's more
 
 ====================
 
@@ -396,26 +407,39 @@ constexpr unsigned long long factorial(unsigned long long n) {
 
 ====================
 
-## Still not convinced?
-### Here's more
+### Indexed sorting: then
 
-====================
-
-### Sorting at compile-time: then
-
-%%sorting-then1%%
+%%indexed_sort-then-usage%%
 
 ----
 
-### Sorting at compile-time: then
+### Indexed sorting: then
 
-%%sorting-then2%%
+%%indexed_sort-then-fusion%%
 
 ----
 
-### Sorting at compile-time: now
+### Indexed sorting: then
 
-%%sorting-now%%
+%%indexed_sort-then-impl%%
+
+----
+
+### Indexed sorting: now
+
+%%indexed_sort-now-usage1%%
+
+----
+
+### Indexed sorting: now
+
+%%indexed_sort-now-usage2%%
+
+----
+
+### Indexed sorting: now
+
+%%indexed_sort-now-impl%%
 
 ====================
 
@@ -690,7 +714,7 @@ using result = add_pointer<int>::type;
 
 ```cpp
 class Type {
-    // ...
+  // ...
 };
 
 Type t{...};
@@ -707,7 +731,7 @@ Type t{...};
 ```c++
 template <typename T>
 struct add_pointer {
-    using type = T*;
+  using type = T*;
 };
 ```
 
@@ -867,7 +891,7 @@ using T = the-type-represented-by-t;
 ```c++
 template <typename T>
 struct Type {
-    using type = T;
+  using type = T;
 };
 ```
 
@@ -981,7 +1005,7 @@ Type<T*> add_pointer(Type<T>) { return {}; }
 ```c++
 template <typename T>
 auto add_pointer(Type<T>) {
-    return type<typename std::add_pointer<T>::type>;
+  return type<typename std::add_pointer<T>::type>;
 }
 ```
 
@@ -992,12 +1016,12 @@ auto add_pointer(Type<T>) {
 ```c++
 template <template <typename ...> class F>
 struct Metafunction {
-    template <typename ...T>
-    auto operator()(Type<T> ...) const {
-        return type<
-            typename F<T...>::type
-        >;
-    }
+  template <typename ...T>
+  auto operator()(Type<T> ...) const {
+    return type<
+      typename F<T...>::type
+    >;
+  }
 };
 
 Metafunction<std::add_pointer> add_pointer{};
@@ -1086,7 +1110,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
   "the format string must be a compile-time hana::String");
 
   auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return c ^in^ formats;
+    return contains(formats, c);
   });
 
   // ...
@@ -1106,7 +1130,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
   "the format string must be a compile-time hana::String");
 
   auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return c ^in^ formats;
+    return contains(formats, c);
   });
 
   static_assert(length(format_chars) == sizeof...(args),
@@ -1135,7 +1159,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ====================
 
-### Fully working on C++14 compilers
+### Working on C++14 compilers
 
 - Clang >= 3.5
 - GCC 5 (almost)
@@ -1170,8 +1194,6 @@ TODO:
   - common_type
   - Heterogeneous linear algebra
   - Boost.Accumulators
-
-- Introduce `sfinae` somewhere
 -->
 
                 </script>

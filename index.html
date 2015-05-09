@@ -271,18 +271,6 @@ This section contains a couple of motivating examples to pique the curiosity.
 The examples should be skimmed over to avoid losing time and explaining
 details that will be covered later.
 
-<!-- TODO
-Reorder the examples and maybe add 1-2 examples. Examples to consider:
-- json generation
-- indexed sort
-- hana::sfinae function
-- common type
-
-- The examples must actually show how merging types/values is better, not only
-  how switching to C++14 is better. The current examples do not really support
-  the merge of the two quadrants I'm proposing.
--->
-
 ====================
 
 ### C++14 is a serious game changer
@@ -402,70 +390,6 @@ static_assert(!has_xxx("abcdef"), "");
 
 ====================
 
-### Introspection: then
-
-```cpp
-namespace keys {
-  struct name;
-  struct age;
-}
-
-BOOST_FUSION_DEFINE_ASSOC_STRUCT(
-  /* global scope */, Person,
-  (std::string, name, keys::name)
-  (int, age, keys::age)
-)
-
-int main() {
-    Person john{"John", 30};
-    std::string name = at_key<keys::name>(john);
-    int age = at_key<keys::age>(john);
-}
-```
-
-----
-
-### Introspection: now
-
-```cpp
-struct Person {
-  BOOST_HANA_DEFINE_STRUCT(Person,
-    (std::string, name),
-    (int, age)
-  );
-};
-
-int main() {
-  Person john{"John", 30};
-  std::string name = at_key(john, BOOST_HANA_STRING("name"));
-  int age = at_key(john, BOOST_HANA_STRING("age"));
-}
-```
-
-====================
-
-### Compile-times: then and now
-
-<!-- .slide: data-state="haschart" -->
-<div class="benchmark-chart" data-dataset="benchmark.including.compile.json"></div>
-
-----
-
-<!-- .slide: data-state="haschart" -->
-<div class="benchmark-chart" data-dataset="benchmark.fold_left.compile.json"></div>
-
-----
-
-<!-- .slide: data-state="haschart" -->
-<div class="benchmark-chart" data-dataset="benchmark.transform.compile.json"></div>
-
-====================
-
-## Still not convinced?
-### Here's more
-
-====================
-
 ### Sorting at compile-time: then
 
 ```cpp
@@ -530,6 +454,172 @@ auto sort(Xs xs, Pred pred) {
     })(xs)
   );
 }
+```
+
+====================
+
+### Introspection: then
+
+```cpp
+namespace keys {
+  struct name;
+  struct age;
+}
+
+BOOST_FUSION_DEFINE_ASSOC_STRUCT(
+  /* global scope */, Person,
+  (std::string, name, keys::name)
+  (int, age, keys::age)
+)
+
+int main() {
+    Person john{"John", 30};
+    std::string name = at_key<keys::name>(john);
+    int age = at_key<keys::age>(john);
+}
+```
+
+----
+
+### Introspection: now
+
+```cpp
+struct Person {
+  BOOST_HANA_DEFINE_STRUCT(Person,
+    (std::string, name),
+    (int, age)
+  );
+};
+
+int main() {
+  Person john{"John", 30};
+  std::string name = at_key(john, BOOST_HANA_STRING("name"));
+  int age = at_key(john, BOOST_HANA_STRING("age"));
+}
+```
+
+====================
+
+## Still not convinced?
+### Here's more
+
+====================
+
+### Compile-times: then and now
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.including.compile.json"></div>
+
+----
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.fold_left.compile.json"></div>
+
+----
+
+<!-- .slide: data-state="haschart" -->
+<div class="benchmark-chart" data-dataset="benchmark.transform.compile.json"></div>
+
+====================
+
+### Indexed sorting: then
+
+```cpp
+using Types   = vector<int[3], int[2], int[1]>;
+using Indexed = indexed_sort<Types, less<sizeof_<_1>,
+                                         sizeof_<_2>>>::type;
+
+using Sorted  = Indexed::first;
+using Indices = Indexed::second;
+
+static_assert(equal<Sorted, vector<int[1], int[2], int[3]>>::value, "");
+
+static_assert(equal<Indices, vector_c<int, 2, 1, 0>,
+  // mpl::equal does a shallow comparison without this
+  quote2<equal_to>
+>::value, "");
+```
+
+----
+
+### Indexed sorting: then
+
+```cpp
+using Sequence = fusion::result_of::as_vector<Sorted>::type;
+using IndexMap = indexed_sort<Indices>::type::second;
+
+Sequence s;
+int (&a)[3] = fusion::at_c<at_c<IndexMap, 0>::type::value>(s);
+int (&b)[2] = fusion::at_c<at_c<IndexMap, 1>::type::value>(s);
+int (&c)[1] = fusion::at_c<at_c<IndexMap, 2>::type::value>(s);
+```
+
+----
+
+### Indexed sorting: then
+
+```cpp
+template <typename Types, typename Predicate = quote2<less>>
+struct indexed_sort {
+  using indexed_types = typename copy<
+    zip_view<vector<Types, range_c<long, 0l, size<Types>::value>>>,
+    back_inserter<vector<>>
+  >::type;
+
+  using sorted = typename sort<
+    indexed_types,
+    apply2<typename lambda<Predicate>::type, front<_1>, front<_2>>
+  >::type;
+
+  using type = pair<
+    typename transform<sorted, front<_1>>::type,
+    typename transform<sorted, back<_1>>::type
+  >;
+};
+```
+
+----
+
+### Indexed sorting: now
+
+```cpp
+auto types = tuple_t<int[3], int[2], int[1]>;
+auto indexed = indexed_sort(types, [](auto t, auto u) {
+    return sizeof_(t) < sizeof_(u);
+});
+
+auto sorted = first(indexed);
+auto indices = second(indexed);
+
+static_assert(sorted == tuple_t<int[1], int[2], int[3]>, "");
+static_assert(indices == tuple_c<std::size_t, 2, 1, 0>, "");
+```
+
+----
+
+### Indexed sorting: now
+
+```cpp
+using Sequence = decltype(unpack(sorted, template_<_tuple>))::type;
+auto index_map = second(indexed_sort(second(indexed), less));
+
+Sequence s;
+int (&a)[3] = s[index_map[0_c]];
+int (&b)[2] = s[index_map[1_c]];
+int (&c)[1] = s[index_map[2_c]];
+```
+
+----
+
+### Indexed sorting: now
+
+```cpp
+auto indexed_sort = [](auto list, auto predicate) {
+  auto indices = to<Tuple>(range(0_c, size(list)));
+  auto indexed_list = zip(list, indices);
+  auto sorted = sort.by(predicate ^on^ head, indexed_list);
+  return make_pair(transform(sorted, head), transform(sorted, last));
+};
 ```
 
 ====================
@@ -851,7 +941,7 @@ using result = add_pointer<int>::type;
 
 ```cpp
 class Type {
-    // ...
+  // ...
 };
 
 Type t{...};
@@ -868,7 +958,7 @@ Type t{...};
 ```c++
 template <typename T>
 struct add_pointer {
-    using type = T*;
+  using type = T*;
 };
 ```
 
@@ -1085,7 +1175,7 @@ using T = the-type-represented-by-t;
 ```c++
 template <typename T>
 struct Type {
-    using type = T;
+  using type = T;
 };
 ```
 
@@ -1227,7 +1317,7 @@ Type<T*> add_pointer(Type<T>) { return {}; }
 ```c++
 template <typename T>
 auto add_pointer(Type<T>) {
-    return type<typename std::add_pointer<T>::type>;
+  return type<typename std::add_pointer<T>::type>;
 }
 ```
 
@@ -1238,12 +1328,12 @@ auto add_pointer(Type<T>) {
 ```c++
 template <template <typename ...> class F>
 struct Metafunction {
-    template <typename ...T>
-    auto operator()(Type<T> ...) const {
-        return type<
-            typename F<T...>::type
-        >;
-    }
+  template <typename ...T>
+  auto operator()(Type<T> ...) const {
+    return type<
+      typename F<T...>::type
+    >;
+  }
 };
 
 Metafunction<std::add_pointer> add_pointer{};
@@ -1346,7 +1436,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
   "the format string must be a compile-time hana::String");
 
   auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return c ^in^ formats;
+    return contains(formats, c);
   });
 
   // ...
@@ -1366,7 +1456,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
   "the format string must be a compile-time hana::String");
 
   auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return c ^in^ formats;
+    return contains(formats, c);
   });
 
   static_assert(length(format_chars) == sizeof...(args),
@@ -1389,7 +1479,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
   "the format string must be a compile-time hana::String");
 
   auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return c ^in^ formats;
+    return contains(formats, c);
   });
 
   static_assert(length(format_chars) == sizeof...(args),
@@ -1416,7 +1506,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 
 ====================
 
-### Fully working on C++14 compilers
+### Working on C++14 compilers
 
 - Clang >= 3.5
 - GCC 5 (almost)
@@ -1451,8 +1541,6 @@ TODO:
   - common_type
   - Heterogeneous linear algebra
   - Boost.Accumulators
-
-- Introduce `sfinae` somewhere
 -->
 
                 </script>

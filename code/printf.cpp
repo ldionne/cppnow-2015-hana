@@ -26,7 +26,7 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
   "the format string must be a compile-time hana::String");
 
   auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return c ^in^ formats;
+    return contains(formats, c);
   });
 
   static_assert(length(format_chars) == sizeof...(args),
