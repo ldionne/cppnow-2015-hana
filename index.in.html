@@ -54,21 +54,16 @@ Louis Dionne, C++Now 2015
 
 ==============================================================================
 
-## Computational dimensions in C++
+## Quadrants of computation in C++
 
 <!--
 If needed, define new MathJax commands just below this to avoid seeing
 them load on the first slide.
 -->
 
-<!--
-TODO: For each type of non-classic computational dimension,
-show a simple use case
--->
-
 ====================
 
-### Homogeneous + dynamic (classic)
+### Homogeneous runtime computations (classic)
 
 ----
 
@@ -86,6 +81,8 @@ std::vector<int> ints{1, 2, 3, 4};
 std::string f(int i) {
   return std::to_string(i * i);
 }
+
+std::string nine = f(3);
 ```
 
 ----
@@ -100,7 +97,7 @@ std::transform(ints.begin(), ints.end(),
 
 ====================
 
-### Homogeneous + `constexpr`
+### Homogeneous `constexpr` computations
 
 ----
 
@@ -118,6 +115,8 @@ constexpr std::array<int, 4> ints{1, 2, 3, 4};
 constexpr int factorial(int n) {
   return n == 0 ? 1 : n * factorial(n - 1);
 }
+
+constexpr int six = factorial(3);
 ```
 
 ----
@@ -128,29 +127,23 @@ constexpr int factorial(int n) {
 template <typename T, std::size_t N, typename F>
   constexpr std::array<std::result_of_t<F(T)>, N>
 transform(std::array<T, N> array, F f) {
-  std::array<std::result_of_t<F(T)>, N> result{};
-  for (std::size_t i = 0; i < N; ++i)
-    result[i] = f(array[i]);
-  return result;
+  // ...
 }
 
 constexpr std::array<int, 4> ints{1, 2, 3, 4};
 constexpr std::array<int, 4> facts = transform(ints, factorial);
-static_assert(facts == std::array<int, 4>{1, 2, 6, 24}, "");
 ```
 
 ====================
 
-### Heterogeneous + dynamic (Fusion)
+### Heterogeneous runtime computations (Fusion)
 
 ----
 
 ### Heterogeneous sequences
 
 ```c++
-std::tuple<int, std::string, float> xs{1, "abc", 3.4f};
-
-fusion::vector<long, std::string> ys{5l, "hello"};
+fusion::vector<int, std::string, float> seq{1, "abc", 3.4f};
 ```
 
 ----
@@ -158,12 +151,17 @@ fusion::vector<long, std::string> ys{5l, "hello"};
 ### Heterogeneous functions
 
 ```c++
-struct twice {
+struct to_string {
   template <typename T>
-  auto operator()(T t) const -> decltype(t + t) {
-    return t + t;
+  std::string operator()(T t) const {
+    std::stringstream ss;
+    ss << t;
+    return ss.str();
   }
 };
+
+std::string three = to_string{}(3);
+std::string pi = to_string{}(3.14159);
 ```
 
 ----
@@ -171,21 +169,21 @@ struct twice {
 ### Heterogeneous algorithms
 
 ```c++
-fusion::vector<long, std::string> ys{5l, "hello"};
-auto zs = fusion::transform(ys, twice{});
-assert(zs == fusion::vector<long, std::string>{10l, "hellohello"});
+fusion::vector<int, std::string, float> seq{1, "abc", 3.4f};
+fusion::vector<std::string, std::string, std::string> strings =
+                fusion::transform(seq, to_string{});
 ```
 
 ====================
 
-### Heterogeneous + `constexpr`
+### Heterogeneous `constexpr` computations
 
 ----
 
 ### Heterogeneous `constexpr` sequences
 
 ```c++
-constexpr std::tuple<int, long, float> xs{1, 3l, 3.4f};
+constexpr std::tuple<int, long, float> seq{1, 3l, 3.4f};
 ```
 
 ----
@@ -199,6 +197,9 @@ struct twice {
     return t + t;
   }
 };
+
+constexpr int i = twice{}(4);
+constexpr double d = twice{}(4.4);
 ```
 
 ----
@@ -206,19 +207,30 @@ struct twice {
 ### Heterogeneous `constexpr` algorithms
 
 ```c++
-TODO
+template <typename ...T, typename F>
+constexpr auto transform(std::tuple<T...> xs, F f) {
+  // ...
+}
+
+constexpr std::tuple<int, long, float> seq{1, 3l, 3.4f};
+constexpr std::tuple<int, long, float> seq2 = transform(seq, twice{});
 ```
 
 ====================
 
-### Type-level (MPL)
+### Observation
+#### `constexpr` &nbsp; $\perp$ &nbsp; heterogeneity
+
+====================
+
+### Type-level computations (MPL)
 
 ----
 
 ### Type-level sequences
 
 ```c++
-TODO
+using seq = mpl::vector<int, char, float, void>;
 ```
 
 ----
@@ -226,7 +238,14 @@ TODO
 ### Type-level functions
 
 ```c++
-TODO
+struct add_const_pointer {
+  template <typename T>
+  struct apply {
+      using type = T const*;
+  };
+};
+
+using result = add_const_pointer::apply<int>::type;
 ```
 
 ----
@@ -234,40 +253,40 @@ TODO
 ### Type-level algorithms
 
 ```c++
-TODO
+using seq = mpl::vector<int, char, float, void>;
+using pointers = mpl::transform<seq, add_const_pointer>::type;
 ```
 
 ====================
 
-### `constexpr` &nbsp; $\perp$ &nbsp; heterogeneity
-
-<!-- TODO: Harmonize above this with below this -->
-
-====================
-
-## What do I propose?
-### Merge type-level and heterogeneous <!-- .element class="fragment" -->
+## Claim
+### Type-level $\;\subset\;$ heterogeneous <!-- .element class="fragment" -->
 
 ==============================================================================
 
-## Why?
+## Why bother?
 
 Note:
 This section contains a couple of motivating examples to pique the curiosity.
-The examples should be skimmed over to avoid losing time and needing to
-explain details that will be covered later.
+The examples should be skimmed over to avoid losing time and explaining
+details that will be covered later.
 
 <!-- TODO
 Reorder the examples and maybe add 1-2 examples. Examples to consider:
 - json generation
 - indexed sort
 - hana::sfinae function
+- common type
+
+- The examples must actually show how merging types/values is better, not only
+  how switching to C++14 is better. The current examples do not really support
+  the merge of the two quadrants I'm proposing.
 -->
 
 ====================
 
 ### C++14 is a serious game changer
-#### $\implies$ We can do better now
+#### $\rightarrow$ We can do better now
 
 ----
 
@@ -283,26 +302,19 @@ auto f(X x) {
 
 ----
 
-### Generalized constexpr
-
-```c++
-constexpr unsigned long long factorial(unsigned long long n) {
-  unsigned long long result = 1;
-  while (n != 0)
-    result *= n--;
-  return result;
-}
-```
-
-----
-
 ### Generic lambdas
 
 ```c++
-auto xs = make_tuple("C++Now", 2015);
-unpack(xs, [](auto a, auto b) {
-  std::cout << a << ' ' << b << std::endl;
-});
+auto f = [](auto t) {
+  return t + t;
+};
+
+// roughly equivalent to
+
+struct {
+  template <typename T>
+  auto operator()(T t) const { return t + t; }
+} f{};
 ```
 
 ----
@@ -316,6 +328,19 @@ constexpr T pi = ...;
 float ok_precision = pi<float>;
 double good_precision = pi<double>;
 long double awesome_precision = pi<long double>;
+```
+
+----
+
+### Generalized constexpr
+
+```c++
+constexpr unsigned long long factorial(unsigned long long n) {
+  unsigned long long result = 1;
+  while (n != 0)
+    result *= n--;
+  return result;
+}
 ```
 
 ====================
@@ -395,6 +420,7 @@ long double awesome_precision = pi<long double>;
 ====================
 
 ## But how?
+### Here's my take <!-- .element class="fragment fade-in" -->
 
 Note:
 Hopefully, the audience should be convinced by now that there's a better way
@@ -402,31 +428,7 @@ to write metaprograms. My goal is now to convince them that I found it.
 
 ==============================================================================
 
-### What are integral constants?
-
-<!--
-TODO:
-  - Make the transition between the How? and this more smooth
-  - Explain how argument passing decays constexprness.
-  - Explain how constexprness can be retained by encoding the value in the type
-  - Ok, so everybody does arithmetic with integers, be they constexpr or not.
-    Why shouldn't we able to do the same when they are encoded as types?
-  - Show a slide with MPL style arithmetic operators. Then, implement them
-    like in Hana.
--->
-
-----
-
-```c++
-template <typename T, T v>
-struct integral_constant {
-  using type = integral_constant;
-  using value_type = T;
-  static constexpr value_type value = v;
-  constexpr operator value_type() const noexcept { return value; }
-  constexpr value_type operator()() const noexcept { return value; }
-};
-```
+### What is an `integral_constant`?
 
 Note:
 This section introduces extensions to `std::integral_constant` that follow
@@ -435,15 +437,71 @@ the next section, which will introduce the type/value unification per-se.
 
 ----
 
-### What if?
+### A type-level encoding of a `constexpr` value
+
+```c++
+template <typename T, T v>
+struct integral_constant {
+  // ...
+};
+
+using one = integral_constant<int, 1>;
+```
+
+----
+
+### A `constexpr`-preserving object
+
+```c++
+template <typename T, T v>
+struct integral_constant {
+  // ...
+
+  constexpr operator T() const noexcept { return v; }
+};
+
+template <typename T>
+void f(T t) { static_assert(t == 1, ""); }
+
+constexpr int one = 1;
+f(one);
+// error: t is not constexpr in the body of f
+
+f(integral_constant<int, one>{});
+// ok: implicit conversion to int is constexpr
+```
+
+Note:
+The issue here is that argument passing strips `constexpr`ness. To see it
+clearly, consider what would happen if `f` was not a template and if it was
+defined in a different translation unit. Inside this other TU, how could the
+compiler tell whether the argument `f` is called with is `constexpr` or not?
+
+`constexpr`ness can be retained by encoding the value of the argument in a
+type, and then using the template system to pass this value to the body of
+the function.
+
+====================
+
+### We can do `constexpr` arithmetic
+
+```c++
+constexpr int two = ((3 * 2) + 4) / 5;
+```
+
+----
+
+### Why not with `integral_constants`?
 
 ```c++
 template <typename V, V v, typename U, U u>
-constexpr auto operator+(integral_constant<V, v>, integral_constant<U, u>)
+constexpr auto
+operator+(integral_constant<V, v>, integral_constant<U, u>)
 { return integral_constant<decltype(v + u), v + u>{}; }
 
 template <typename V, V v, typename U, U u>
-constexpr auto operator==(integral_constant<V, v>, integral_constant<U, u>)
+constexpr auto
+operator==(integral_constant<V, v>, integral_constant<U, u>)
 { return integral_constant<bool, v == u>{}; }
 
 // ...
@@ -451,7 +509,7 @@ constexpr auto operator==(integral_constant<V, v>, integral_constant<U, u>)
 
 ----
 
-### TODO: Title
+### Tadam!
 
 ```c++
 static_assert(integral_constant<int, 1>{} + integral_constant<int, 4>{}
@@ -518,10 +576,10 @@ $$
 ```c++
 template <typename T, T n>
 struct integral_constant {
-  // usual stuff
+  // ...
 
   template <typename F>
-  void times(F&& f) const {
+  void times(F f) const {
     f(); f(); ... f(); // n times
   }
 };
@@ -531,13 +589,13 @@ struct integral_constant {
 
 ### Loop unrolling: then
 
-%%why-unrolling-then%%
+%%unrolling-then%%
 
 ----
 
 ### Loop unrolling: now
 
-%%why-unrolling-now%%
+%%unrolling-now%%
 
 ----
 
@@ -545,27 +603,31 @@ struct integral_constant {
 
 ```
 _main:
-    ; snip
-    push    rbp
-    mov rbp, rsp
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    call __Z1fv
-    xor eax, eax
-    pop rbp
-    ret
+  ; snip
+  push    rbp
+  mov rbp, rsp
+  call __Z1fv
+  call __Z1fv
+  call __Z1fv
+  call __Z1fv
+  call __Z1fv
+  call __Z1fv
+  call __Z1fv
+  call __Z1fv
+  call __Z1fv
+  call __Z1fv
+  xor eax, eax
+  pop rbp
+  ret
 ```
 
 ====================
 
-### So far so good. Let's push
+### So far so good
+
+----
+
+### What if?
 
 ```c++
 template <typename ...T>
@@ -595,6 +657,13 @@ char x = std::get<1>(values);
 tuple<int, char, float> values = {1, 'x', 3.4f};
 char x = values[1_c];
 ```
+
+====================
+
+### Why stop here?
+
+- `std::ratio`
+- `std::integer_sequence`
 
 ==============================================================================
 

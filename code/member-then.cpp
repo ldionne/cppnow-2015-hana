@@ -13,7 +13,7 @@ static std::false_type has_xxx_impl(...);
 
 template <typename T>
 struct has_xxx
-    : decltype(has_xxx_impl<T>(int{}))
+  : decltype(has_xxx_impl<T>(int{}))
 { };
 
 struct Foo { int xxx; };

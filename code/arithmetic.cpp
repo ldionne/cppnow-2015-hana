@@ -50,6 +50,9 @@ struct sqrt
   : integral_c<typename N::value_type, ::sqrt(N::value)>
 { };
 
+template <typename X, typename Y>
+using point = pair<X, Y>;
+
 // sample(arithmetic-then)
 template <typename P1, typename P2>
 struct distance {
@@ -65,9 +68,6 @@ struct distance {
   >::type;
 };
 
-template <typename X, typename Y>
-using point = pair<X, Y>;
-
 static_assert(equal_to<
   distance<point<int_<3>, int_<5>>, point<int_<7>, int_<2>>>::type,
   int_<5>
@@ -80,6 +80,8 @@ namespace now {
 using namespace boost::hana;
 using namespace boost::hana::literals;
 
+constexpr auto point = make_pair;
+
 // sample(arithmetic-now)
 template <typename P1, typename P2>
 constexpr auto distance(P1 p1, P2 p2) {
@@ -88,13 +90,6 @@ constexpr auto distance(P1 p1, P2 p2) {
   return sqrt(xs*xs + ys*ys);
 }
 
-constexpr auto point = make_pair;
-
-static_assert(
-  decltype(distance(point(3_c, 5_c), point(7_c, 2_c)) == 5_c)::value
-, "");
-
-// or simply
 static_assert(distance(point(3_c, 5_c), point(7_c, 2_c)) == 5_c, "");
 // end-sample
 
