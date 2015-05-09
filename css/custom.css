@@ -5,5 +5,5 @@
 
 /* Allow code boxes to be longer */
 .reveal pre code {
-    max-height: 500px;
+    max-height: 550px;
 }

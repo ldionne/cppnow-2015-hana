@@ -13,33 +13,39 @@
 #include <boost/mpl/int.hpp>
 #include <boost/mpl/iterator_range.hpp>
 #include <boost/mpl/joint_view.hpp>
+#include <boost/mpl/lambda.hpp>
 #include <boost/mpl/less.hpp>
 #include <boost/mpl/next.hpp>
 #include <boost/mpl/partition.hpp>
-#include <boost/mpl/protect.hpp>
+#include <boost/mpl/placeholders.hpp>
 #include <boost/mpl/push_back.hpp>
 #include <boost/mpl/single_view.hpp>
 #include <boost/mpl/vector.hpp>
 using namespace boost::mpl;
 
 
-// sample(sorting-then)
+// sample(sorting-then1)
 template <typename Sequence, typename Pred>
-struct sort;
+struct sort_impl;
 
-template <typename Pred, typename Pivot>
-struct sort_pred {
-  template <typename T>
-  using apply = apply2<Pred, T, Pivot>;
-};
+template <typename Sequence, typename Pred>
+struct sort
+  : eval_if<empty<Sequence>,
+      identity<Sequence>,
+      sort_impl<Sequence, Pred>
+  >
+{ };
+// end-sample
 
+// sample(sorting-then2)
 template <typename Sequence, typename Pred>
 struct sort_impl {
   using pivot = typename begin<Sequence>::type;
   using parts = typename partition<
     iterator_range<typename next<pivot>::type,
                    typename end<Sequence>::type>
-    , protect<sort_pred<Pred, typename deref<pivot>::type>>
+    , apply2<typename lambda<Pred>::type, _1,
+             typename deref<pivot>::type>
     , back_inserter<vector<>>
     , back_inserter<vector<>>
   >::type;
@@ -55,14 +61,6 @@ struct sort_impl {
     part1, typename end<part1>::type, part2
   >::type;
 };
-
-template <typename Sequence, typename Pred>
-struct sort
-  : eval_if<empty<Sequence>,
-      identity<Sequence>,
-      sort_impl<Sequence, Pred>
-  >
-{ };
 // end-sample
 
 static_assert(equal<

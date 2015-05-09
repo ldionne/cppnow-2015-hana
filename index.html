@@ -470,21 +470,30 @@ int main() {
 
 ```cpp
 template <typename Sequence, typename Pred>
-struct sort;
+struct sort_impl;
 
-template <typename Pred, typename Pivot>
-struct sort_pred {
-  template <typename T>
-  using apply = apply2<Pred, T, Pivot>;
-};
+template <typename Sequence, typename Pred>
+struct sort
+  : eval_if<empty<Sequence>,
+      identity<Sequence>,
+      sort_impl<Sequence, Pred>
+  >
+{ };
+```
 
+----
+
+### Sorting at compile-time: then
+
+```cpp
 template <typename Sequence, typename Pred>
 struct sort_impl {
   using pivot = typename begin<Sequence>::type;
   using parts = typename partition<
     iterator_range<typename next<pivot>::type,
                    typename end<Sequence>::type>
-    , protect<sort_pred<Pred, typename deref<pivot>::type>>
+    , apply2<typename lambda<Pred>::type, _1,
+             typename deref<pivot>::type>
     , back_inserter<vector<>>
     , back_inserter<vector<>>
   >::type;
@@ -500,17 +509,7 @@ struct sort_impl {
     part1, typename end<part1>::type, part2
   >::type;
 };
-
-template <typename Sequence, typename Pred>
-struct sort
-  : eval_if<empty<Sequence>,
-      identity<Sequence>,
-      sort_impl<Sequence, Pred>
-  >
-{ };
 ```
-
-<!-- TODO: The code does not fit in one slide -->
 
 ----
 
