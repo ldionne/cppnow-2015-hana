@@ -746,8 +746,8 @@ bool operator==(Type t, Type u);
 // ...
 
 Type t{...};
-Type t_ptr = add_pointer(t);
-assert(is_pointer(t));
+Type p = add_pointer(t);
+assert(is_pointer(p));
 ```
 
 ====================
@@ -787,15 +787,15 @@ constexpr bool is_pointer(Type<T*>) { return true; }
 ### Tadam!
 
 ```c++
-Type<int> i{};
-auto i_ptr = add_pointer(i);
-static_assert(is_pointer(i_ptr), "");
+Type<int> t{};
+auto p = add_pointer(t);
+static_assert(is_pointer(p), "");
 ```
 
 <!--
 TODO:
-There are going to be objections on why `i_ptr` isn't constexpr.
-Find out why this works even if we're reading from `i_ptr` in `is_pointer`.
+There are going to be objections on why `p` isn't constexpr.
+Find out why this works even if we're reading from `p` in `is_pointer`.
 -->
 
 ----
@@ -806,9 +806,9 @@ Find out why this works even if we're reading from `i_ptr` in `is_pointer`.
 template <typename T>
 constexpr Type<T> type{};
 
-auto i = type<int>;
-auto i_ptr = add_pointer(i);
-static_assert(is_pointer(i_ptr), "");
+auto t = type<int>;
+auto p = add_pointer(t);
+static_assert(is_pointer(p), "");
 ```
 
 ====================
@@ -1191,7 +1191,6 @@ http://github.com/ldionne
 TODO:
 - Potential case studies:
   - tuple_cat
-  - common_type
   - Heterogeneous linear algebra
   - Boost.Accumulators
 -->
