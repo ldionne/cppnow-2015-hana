@@ -440,6 +440,51 @@ int main() {
 
 ====================
 
+### `std::common_type` : N3843
+
+```cpp
+template <typename T, typename U>
+using builtin_common_t = std::decay_t<decltype(
+  true ? std::declval<T>() : std::declval<U>()
+)>;
+
+template <typename, typename ...>
+struct ct { };
+
+template <typename T>
+struct ct<void, T> : std::decay<T> { };
+
+template <typename T, typename U, typename ...V>
+struct ct<void_t<builtin_common_t<T, U>>, T, U, V...>
+  : ct<void, builtin_common_t<T, U>, V...>
+{ };
+
+template <typename ...T>
+struct common_type : ct<void, T...> { };
+```
+
+----
+
+### `std::common_type` : now
+
+```cpp
+template <typename ...>
+auto common_type_impl = nothing;
+
+template <typename T1, typename ...Tn>
+auto common_type_impl<T1, Tn...> = monadic_fold<Maybe>(
+  tuple_t<Tn...>, type<std::decay_t<T1>>,
+  sfinae([](auto t, auto u) -> decltype(
+    traits::decay(true ? traits::declval(t) : traits::declval(u))
+  ) { return {}; })
+);
+
+template <typename ...T>
+struct common_type : decltype(common_type_impl<T...>) { };
+```
+
+====================
+
 ### Compile-times: then and now
 
 <!-- .slide: data-state="haschart" -->
