@@ -45,7 +45,7 @@ struct indexed_sort {
 // end-sample
 
 int main() {
-// sample(indexed_sort-then-usage)
+// sample(indexed_sort-then-usage1)
 using Types   = vector<int[3], int[2], int[1]>;
 using Indexed = indexed_sort<Types, less<sizeof_<_1>,
                                          sizeof_<_2>>>::type;
@@ -61,7 +61,7 @@ static_assert(equal<Indices, vector_c<int, 2, 1, 0>,
 >::value, "");
 // end-sample
 
-// sample(indexed_sort-then-fusion)
+// sample(indexed_sort-then-usage2)
 using Sequence = fusion::result_of::as_vector<Sorted>::type;
 using IndexMap = indexed_sort<Indices>::type::second;
 

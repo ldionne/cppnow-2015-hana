@@ -1204,140 +1204,86 @@ auto add_const = metafunction<std::add_const>;
 
 ====================
 
-### Example: type safe `printf`
+### Case study: indexed sorting
 
 ```cpp
-type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4, "abcd");
+auto types = tuple_t<int[3], int[2], int[1]>;
+auto indexed = indexed_sort(types, [](auto t, auto u) {
+    return sizeof_(t) < sizeof_(u);
+});
+
+auto sorted = first(indexed);
+auto indices = second(indexed);
+
+static_assert(sorted == tuple_t<int[1], int[2], int[3]>, "");
+static_assert(indices == tuple_c<std::size_t, 2, 1, 0>, "");
 ```
 
 ----
 
-### Wrong argument type? No problem
+### The beast
 
 ```cpp
-type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 2, "abcd");
-```
-
-```c++
-[...]/how-printf.cpp:38:5: error: static_assert failed
-  "the type of the argument does not match the format character"
-  static_assert(decltype(formats[format_char] == arg_type){},
-  ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-```
-
-----
-
-### Wrong number of arguments? No problem
-
-```cpp
-type_safe_printf(BOOST_HANA_STRING("%i, %f, %s"), 2, 3.4);
-```
-
-```c++
-[...]/how-printf.cpp:33:3: error: static_assert failed
-  "number of arguments not matching the number of format characters"
-  static_assert(length(format_chars) == sizeof...(args),
-  ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-```
-
-----
-
-### Step 1: Specify format characters
-
-```cpp
-auto formats = make_map(
-  make_pair(char_<'i'>, type<int>),
-  make_pair(char_<'f'>, type<double>),
-  make_pair(char_<'s'>, type<char*>)
-
-  // ...
-);
-```
-
-----
-
-### Step 2: Ensure a compile-time format string
-
-```c++
-template <typename Fmt, typename ...Args>
-int type_safe_printf(Fmt fmt, Args const& ...args) {
-  static_assert(is_a<String>(fmt),
-  "the format string must be a compile-time hana::String");
-
-  // ...
-
-  return std::printf(to<char const*>(fmt), args...);
-};
-```
-
-----
-
-### Step 3: Extract the format characters
-
-```c++
-template <typename Fmt, typename ...Args>
-int type_safe_printf(Fmt fmt, Args const& ...args) {
-  static_assert(is_a<String>(fmt),
-  "the format string must be a compile-time hana::String");
-
-  auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return contains(formats, c);
+auto indexed_sort = [](auto list, auto predicate) {
+  auto indices = to<Tuple>(range(0_c, size(list)));
+  auto indexed_list = zip.with(make_pair, list, indices);
+  auto sorted = sort(indexed_list, [&](auto const& x, auto const& y) {
+    return predicate(first(x), first(y));
   });
-
-  // ...
-
-  return std::printf(to<char const*>(fmt), args...);
+  return make_pair(transform(sorted, first), transform(sorted, second));
 };
 ```
 
 ----
 
-### Step 4: Check the number of arguments
-
-```c++
-template <typename Fmt, typename ...Args>
-int type_safe_printf(Fmt fmt, Args const& ...args) {
-  static_assert(is_a<String>(fmt),
-  "the format string must be a compile-time hana::String");
-
-  auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return contains(formats, c);
-  });
-
-  static_assert(length(format_chars) == sizeof...(args),
-  "number of arguments not matching the number of format characters");
-
-  // ...
-
-  return std::printf(to<char const*>(fmt), args...);
-};
-```
-
-----
-
-### Step 5: Check the type of each argument
+### With Fusion/MPL ...
 
 ```cpp
-template <typename Fmt, typename ...Args>
-int type_safe_printf(Fmt fmt, Args const& ...args) {
-  static_assert(is_a<String>(fmt),
-  "the format string must be a compile-time hana::String");
+template <typename Types, typename Predicate = quote2<less>>
+struct indexed_sort {
+  using indexed_types = typename copy<
+    zip_view<vector<Types, range_c<long, 0l, size<Types>::value>>>,
+    back_inserter<vector<>>
+  >::type;
 
-  auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return contains(formats, c);
-  });
+  using sorted = typename sort<
+    indexed_types,
+    apply2<typename lambda<Predicate>::type, front<_1>, front<_2>>
+  >::type;
 
-  static_assert(length(format_chars) == sizeof...(args),
-  "number of arguments not matching the number of format characters");
-
-  auto conversions = zip(tuple_t<std::decay_t<Args>...>, format_chars);
-  for_each(conversions, fuse([](auto arg_type, auto format_char) {
-    static_assert(decltype(formats[format_char] == arg_type){},
-    "the type of the argument does not match the format character");
-  }));
-
-  return std::printf(to<char const*>(fmt), args...);
+  using type = pair<
+    typename transform<sorted, front<_1>>::type,
+    typename transform<sorted, back<_1>>::type
+  >;
 };
+```
+
+----
+
+### Faking the initial sequence: now
+
+```cpp
+using Sequence = decltype(unpack(sorted, template_<_tuple>))::type;
+auto index_map = second(indexed_sort(indices, less));
+
+Sequence s;
+int (&a)[3] = s[index_map[0_c]];
+int (&b)[2] = s[index_map[1_c]];
+int (&c)[1] = s[index_map[2_c]];
+```
+
+----
+
+### Faking the initial sequence: then
+
+```cpp
+using Sequence = fusion::result_of::as_vector<Sorted>::type;
+using IndexMap = indexed_sort<Indices>::type::second;
+
+Sequence s;
+int (&a)[3] = fusion::at_c<at_c<IndexMap, 0>::type::value>(s);
+int (&b)[2] = fusion::at_c<at_c<IndexMap, 1>::type::value>(s);
+int (&c)[1] = fusion::at_c<at_c<IndexMap, 2>::type::value>(s);
 ```
 
 ==============================================================================
@@ -1378,112 +1324,6 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 http://ldionne.com <br>
 http://github.com/ldionne
 </span>
-
-==============================================================================
-
-## Bonus
-
-====================
-
-### Indexed sorting: then
-
-```cpp
-using Types   = vector<int[3], int[2], int[1]>;
-using Indexed = indexed_sort<Types, less<sizeof_<_1>,
-                                         sizeof_<_2>>>::type;
-
-using Sorted  = Indexed::first;
-using Indices = Indexed::second;
-
-static_assert(equal<Sorted, vector<int[1], int[2], int[3]>>::value, "");
-
-static_assert(equal<Indices, vector_c<int, 2, 1, 0>,
-  // mpl::equal does a shallow comparison without this
-  quote2<equal_to>
->::value, "");
-```
-
-----
-
-### Indexed sorting: then
-
-```cpp
-using Sequence = fusion::result_of::as_vector<Sorted>::type;
-using IndexMap = indexed_sort<Indices>::type::second;
-
-Sequence s;
-int (&a)[3] = fusion::at_c<at_c<IndexMap, 0>::type::value>(s);
-int (&b)[2] = fusion::at_c<at_c<IndexMap, 1>::type::value>(s);
-int (&c)[1] = fusion::at_c<at_c<IndexMap, 2>::type::value>(s);
-```
-
-----
-
-### Indexed sorting: then
-
-```cpp
-template <typename Types, typename Predicate = quote2<less>>
-struct indexed_sort {
-  using indexed_types = typename copy<
-    zip_view<vector<Types, range_c<long, 0l, size<Types>::value>>>,
-    back_inserter<vector<>>
-  >::type;
-
-  using sorted = typename sort<
-    indexed_types,
-    apply2<typename lambda<Predicate>::type, front<_1>, front<_2>>
-  >::type;
-
-  using type = pair<
-    typename transform<sorted, front<_1>>::type,
-    typename transform<sorted, back<_1>>::type
-  >;
-};
-```
-
-----
-
-### Indexed sorting: now
-
-```cpp
-auto types = tuple_t<int[3], int[2], int[1]>;
-auto indexed = indexed_sort(types, [](auto t, auto u) {
-    return sizeof_(t) < sizeof_(u);
-});
-
-auto sorted = first(indexed);
-auto indices = second(indexed);
-
-static_assert(sorted == tuple_t<int[1], int[2], int[3]>, "");
-static_assert(indices == tuple_c<std::size_t, 2, 1, 0>, "");
-```
-
-----
-
-### Indexed sorting: now
-
-```cpp
-using Sequence = decltype(unpack(sorted, template_<_tuple>))::type;
-auto index_map = second(indexed_sort(second(indexed), less));
-
-Sequence s;
-int (&a)[3] = s[index_map[0_c]];
-int (&b)[2] = s[index_map[1_c]];
-int (&c)[1] = s[index_map[2_c]];
-```
-
-----
-
-### Indexed sorting: now
-
-```cpp
-auto indexed_sort = [](auto list, auto predicate) {
-  auto indices = to<Tuple>(range(0_c, size(list)));
-  auto indexed_list = zip(list, indices);
-  auto sorted = sort.by(predicate ^on^ head, indexed_list);
-  return make_pair(transform(sorted, head), transform(sorted, last));
-};
-```
 
 <!--
 TODO:

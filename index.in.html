@@ -958,106 +958,33 @@ auto add_const = metafunction<std::add_const>;
 
 ====================
 
-### Example: type safe `printf`
+### Case study: indexed sorting
 
-%%printf-usage%%
-
-----
-
-### Wrong argument type? No problem
-
-%%printf-wrong_type%%
-
-```c++
-[...]/how-printf.cpp:38:5: error: static_assert failed
-  "the type of the argument does not match the format character"
-  static_assert(decltype(formats[format_char] == arg_type){},
-  ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-```
+%%indexed_sort-now-usage1%%
 
 ----
 
-### Wrong number of arguments? No problem
+### The beast
 
-%%printf-wrong_narg%%
-
-```c++
-[...]/how-printf.cpp:33:3: error: static_assert failed
-  "number of arguments not matching the number of format characters"
-  static_assert(length(format_chars) == sizeof...(args),
-  ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-```
+%%indexed_sort-now-impl%%
 
 ----
 
-### Step 1: Specify format characters
+### With Fusion/MPL ...
 
-%%printf-formats%%
-
-----
-
-### Step 2: Ensure a compile-time format string
-
-```c++
-template <typename Fmt, typename ...Args>
-int type_safe_printf(Fmt fmt, Args const& ...args) {
-  static_assert(is_a<String>(fmt),
-  "the format string must be a compile-time hana::String");
-
-  // ...
-
-  return std::printf(to<char const*>(fmt), args...);
-};
-```
+%%indexed_sort-then-impl%%
 
 ----
 
-### Step 3: Extract the format characters
+### Faking the initial sequence: now
 
-```c++
-template <typename Fmt, typename ...Args>
-int type_safe_printf(Fmt fmt, Args const& ...args) {
-  static_assert(is_a<String>(fmt),
-  "the format string must be a compile-time hana::String");
-
-  auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return contains(formats, c);
-  });
-
-  // ...
-
-  return std::printf(to<char const*>(fmt), args...);
-};
-```
+%%indexed_sort-now-usage2%%
 
 ----
 
-### Step 4: Check the number of arguments
+### Faking the initial sequence: then
 
-```c++
-template <typename Fmt, typename ...Args>
-int type_safe_printf(Fmt fmt, Args const& ...args) {
-  static_assert(is_a<String>(fmt),
-  "the format string must be a compile-time hana::String");
-
-  auto format_chars = filter(to<Tuple>(fmt), [](auto c) {
-    return contains(formats, c);
-  });
-
-  static_assert(length(format_chars) == sizeof...(args),
-  "number of arguments not matching the number of format characters");
-
-  // ...
-
-  return std::printf(to<char const*>(fmt), args...);
-};
-```
-
-----
-
-### Step 5: Check the type of each argument
-
-%%printf-core%%
+%%indexed_sort-then-usage2%%
 
 ==============================================================================
 
@@ -1097,46 +1024,6 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 http://ldionne.com <br>
 http://github.com/ldionne
 </span>
-
-==============================================================================
-
-## Bonus
-
-====================
-
-### Indexed sorting: then
-
-%%indexed_sort-then-usage%%
-
-----
-
-### Indexed sorting: then
-
-%%indexed_sort-then-fusion%%
-
-----
-
-### Indexed sorting: then
-
-%%indexed_sort-then-impl%%
-
-----
-
-### Indexed sorting: now
-
-%%indexed_sort-now-usage1%%
-
-----
-
-### Indexed sorting: now
-
-%%indexed_sort-now-usage2%%
-
-----
-
-### Indexed sorting: now
-
-%%indexed_sort-now-impl%%
 
 <!--
 TODO:
