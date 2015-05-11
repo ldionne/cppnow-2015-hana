@@ -48,10 +48,6 @@
 <br>
 Louis Dionne, C++Now 2015
 
-====================
-
-### Such a cocky title
-
 ==============================================================================
 
 ## Quadrants of computation in C++
@@ -218,11 +214,6 @@ constexpr std::tuple<int, long, float> seq2 = transform(seq, twice{});
 
 ====================
 
-### Observation
-#### `constexpr` &nbsp; $\perp$ &nbsp; heterogeneity
-
-====================
-
 ### Type-level computations (MPL)
 
 ----
@@ -238,14 +229,12 @@ using seq = mpl::vector<int, char, float, void>;
 ### Type-level functions
 
 ```c++
+template <typename T>
 struct add_const_pointer {
-  template <typename T>
-  struct apply {
-      using type = T const*;
-  };
+  using type = T const*;
 };
 
-using result = add_const_pointer::apply<int>::type;
+using result = add_const_pointer<int>::type;
 ```
 
 ----
@@ -254,7 +243,8 @@ using result = add_const_pointer::apply<int>::type;
 
 ```c++
 using seq = mpl::vector<int, char, float, void>;
-using pointers = mpl::transform<seq, add_const_pointer>::type;
+using pointers = mpl::transform<seq,
+                      mpl::quote1<add_const_pointer>>::type;
 ```
 
 ====================
@@ -275,61 +265,6 @@ details that will be covered later.
 
 ### C++14 is a serious game changer
 #### $\rightarrow$ We can do better now
-
-----
-
-### Automatically deduced return type
-
-```c++
-template <typename X>
-auto f(X x) {
-  // ...
-  return z; // return type deduced from z
-}
-```
-
-----
-
-### Generic lambdas
-
-```c++
-auto f = [](auto t) {
-  return t + t;
-};
-
-// roughly equivalent to
-
-struct {
-  template <typename T>
-  auto operator()(T t) const { return t + t; }
-} f{};
-```
-
-----
-
-### Variable templates
-
-```c++
-template <typename T>
-constexpr T pi = ...;
-
-float ok_precision = pi<float>;
-double good_precision = pi<double>;
-long double awesome_precision = pi<long double>;
-```
-
-----
-
-### Generalized constexpr
-
-```c++
-constexpr unsigned long long factorial(unsigned long long n) {
-  unsigned long long result = 1;
-  while (n != 0)
-    result *= n--;
-  return result;
-}
-```
 
 ====================
 
@@ -398,48 +333,7 @@ constexpr unsigned long long factorial(unsigned long long n) {
 ----
 
 <!-- .slide: data-state="haschart" -->
-<div class="benchmark-chart" data-dataset="benchmark.fold_left.compile.json"></div>
-
-----
-
-<!-- .slide: data-state="haschart" -->
 <div class="benchmark-chart" data-dataset="benchmark.transform.compile.json"></div>
-
-====================
-
-### Indexed sorting: then
-
-%%indexed_sort-then-usage%%
-
-----
-
-### Indexed sorting: then
-
-%%indexed_sort-then-fusion%%
-
-----
-
-### Indexed sorting: then
-
-%%indexed_sort-then-impl%%
-
-----
-
-### Indexed sorting: now
-
-%%indexed_sort-now-usage1%%
-
-----
-
-### Indexed sorting: now
-
-%%indexed_sort-now-usage2%%
-
-----
-
-### Indexed sorting: now
-
-%%indexed_sort-now-impl%%
 
 ====================
 
@@ -519,7 +413,24 @@ constexpr int two = ((3 * 2) + 4) / 5;
 
 ----
 
-### Why not with `integral_constants`?
+### `integral_constant` version
+
+```c++
+template <typename X, typename Y>
+struct plus {
+  using type = integral_constant<
+    decltype(X::value + Y::value),
+    X::value + Y::value
+  >;
+};
+
+using three = plus<integral_constant<int, 1>,
+                   integral_constant<int, 2>>::type;
+```
+
+----
+
+### But what if?
 
 ```c++
 template <typename V, V v, typename U, U u>
@@ -627,7 +538,7 @@ struct integral_constant {
 
 ----
 
-### Skeptical?
+### Sceptical?
 
 ```
 _main:
@@ -1186,6 +1097,46 @@ int type_safe_printf(Fmt fmt, Args const& ...args) {
 http://ldionne.com <br>
 http://github.com/ldionne
 </span>
+
+==============================================================================
+
+## Bonus
+
+====================
+
+### Indexed sorting: then
+
+%%indexed_sort-then-usage%%
+
+----
+
+### Indexed sorting: then
+
+%%indexed_sort-then-fusion%%
+
+----
+
+### Indexed sorting: then
+
+%%indexed_sort-then-impl%%
+
+----
+
+### Indexed sorting: now
+
+%%indexed_sort-now-usage1%%
+
+----
+
+### Indexed sorting: now
+
+%%indexed_sort-now-usage2%%
+
+----
+
+### Indexed sorting: now
+
+%%indexed_sort-now-impl%%
 
 <!--
 TODO:
