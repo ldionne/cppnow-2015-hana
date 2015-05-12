@@ -681,10 +681,7 @@ assert(is_pointer(p));
 
 ### Easy fix: use templates
 
-```c++
-template <typename T>
-class Type { /* nothing */ };
-```
+%%type_unification-Type%%
 
 Note:
 Make explicit the link between this and what we did in the previous section
@@ -694,45 +691,19 @@ with integral constants.
 
 ### Easy fix: use templates
 
-```c++
-template <typename T>
-Type<T*> add_pointer(Type<T>) { return {}; }
-
-template <typename T>
-constexpr bool is_pointer(Type<T>) { return false; }
-
-template <typename T>
-constexpr bool is_pointer(Type<T*>) { return true; }
-```
+%%type_unification-metafunction%%
 
 ----
 
 ### Tadam!
 
-```c++
-Type<int> t{};
-auto p = add_pointer(t);
-static_assert(is_pointer(p), "");
-```
-
-<!--
-TODO:
-There are going to be objections on why `p` isn't constexpr.
-Find out why this works even if we're reading from `p` in `is_pointer`.
--->
+%%type_unification-usage%%
 
 ----
 
 ### Sugar
 
-```c++
-template <typename T>
-constexpr Type<T> type{};
-
-auto t = type<int>;
-auto p = add_pointer(t);
-static_assert(is_pointer(p), "");
-```
+%%type_unification-sugar%%
 
 ====================
 
@@ -742,13 +713,7 @@ static_assert(is_pointer(p), "");
 
 ### Types are now first class citizens!
 
-```c++
-auto ts = make_tuple(type<int>, type<char>, type<void>);
-auto c = ts[1_c];
-
-// sugar:
-auto ts = tuple_t<int, char, void>;
-```
+%%type_unification-first_class%%
 
 ====================
 

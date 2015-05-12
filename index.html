@@ -875,7 +875,7 @@ assert(is_pointer(p));
 
 ### Easy fix: use templates
 
-```c++
+```cpp
 template <typename T>
 class Type { /* nothing */ };
 ```
@@ -888,38 +888,35 @@ with integral constants.
 
 ### Easy fix: use templates
 
-```c++
+```cpp
 template <typename T>
-Type<T*> add_pointer(Type<T>) { return {}; }
+constexpr Type<T*> add_pointer(Type<T> const&)
+{ return {}; }
 
 template <typename T>
-constexpr bool is_pointer(Type<T>) { return false; }
+constexpr std::false_type is_pointer(Type<T> const&)
+{ return {}; }
 
 template <typename T>
-constexpr bool is_pointer(Type<T*>) { return true; }
+constexpr std::true_type is_pointer(Type<T*> const&)
+{ return {}; }
 ```
 
 ----
 
 ### Tadam!
 
-```c++
+```cpp
 Type<int> t{};
 auto p = add_pointer(t);
 static_assert(is_pointer(p), "");
 ```
 
-<!--
-TODO:
-There are going to be objections on why `p` isn't constexpr.
-Find out why this works even if we're reading from `p` in `is_pointer`.
--->
-
 ----
 
 ### Sugar
 
-```c++
+```cpp
 template <typename T>
 constexpr Type<T> type{};
 
@@ -936,12 +933,12 @@ static_assert(is_pointer(p), "");
 
 ### Types are now first class citizens!
 
-```c++
-auto ts = make_tuple(type<int>, type<char>, type<void>);
-auto c = ts[1_c];
+```cpp
+auto xs = make_tuple(type<int>, type<char>, type<void>);
+auto c = xs[1_c];
 
 // sugar:
-auto ts = tuple_t<int, char, void>;
+auto ys = tuple_t<int, char, void>;
 ```
 
 ====================
