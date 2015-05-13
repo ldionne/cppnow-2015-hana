@@ -51,15 +51,18 @@ struct sqrt
 { };
 
 template <typename X, typename Y>
-using point = pair<X, Y>;
+struct point {
+  using x = X;
+  using y = Y;
+};
 
 // sample(arithmetic-then)
 template <typename P1, typename P2>
 struct distance {
-  using xs = typename minus<typename P1::first,
-                            typename P2::first>::type;
-  using ys = typename minus<typename P1::second,
-                            typename P2::second>::type;
+  using xs = typename minus<typename P1::x,
+                            typename P2::x>::type;
+  using ys = typename minus<typename P1::y,
+                            typename P2::y>::type;
   using type = typename sqrt<
     typename plus<
       typename multiplies<xs, xs>::type,
@@ -80,13 +83,19 @@ namespace now {
 using namespace boost::hana;
 using namespace boost::hana::literals;
 
-constexpr auto point = make_pair;
+template <typename X, typename Y>
+struct _point {
+  X x;
+  Y y;
+};
+template <typename X, typename Y>
+constexpr _point<X, Y> point(X x, Y y) { return {x, y}; }
 
 // sample(arithmetic-now)
 template <typename P1, typename P2>
 constexpr auto distance(P1 p1, P2 p2) {
-  auto xs = first(p1) - first(p2);
-  auto ys = second(p1) - second(p2);
+  auto xs = p1.x - p2.x;
+  auto ys = p1.y - p2.y;
   return sqrt(xs*xs + ys*ys);
 }
 
