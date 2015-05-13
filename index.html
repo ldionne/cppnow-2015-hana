@@ -611,6 +611,18 @@ operator==(integral_constant<V, v>, integral_constant<U, u>)
 ### Tadam!
 
 ```c++
+static_assert(decltype(
+  integral_constant<int, 1>{} + integral_constant<int, 4>{}
+                              ==
+                 integral_constant<int, 5>{}
+  )::value, "");
+```
+
+----
+
+### (or simply)
+
+```c++
 static_assert(integral_constant<int, 1>{} + integral_constant<int, 4>{}
                                           ==
                             integral_constant<int, 5>{}
