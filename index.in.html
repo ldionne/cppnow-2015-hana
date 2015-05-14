@@ -308,24 +308,6 @@ details that will be covered later.
 
 ====================
 
-### Sorting at compile-time: then
-
-%%sorting-then1%%
-
-----
-
-### Sorting at compile-time: then
-
-%%sorting-then2%%
-
-----
-
-### Sorting at compile-time: now
-
-%%sorting-now%%
-
-====================
-
 ### Introspection: then
 
 %%introspection-then%%
@@ -338,20 +320,77 @@ details that will be covered later.
 
 ====================
 
+### Generating JSON: then
+
+```c++
+// sorry, not going to implement this
+```
+
+----
+
+### Generating JSON: now
+
+%%json-usage%%
+
+__Output__:
+```json
+[1, "c", {"name" : "Joe", "age" : 30}]
+```
+
+----
+
+### Handle base types
+
+%%json-base%%
+
+----
+
+### Handle `Sequences`
+
+%%json-Sequence%%
+
+----
+
+### Handle `Structs`
+
+%%json-Struct%%
+
+====================
+
 ## Still not convinced?
 ### Here's more
 
 ====================
 
-### `std::common_type` : N3843
+### Error messages: then
 
-%%common_type-N3843%%
+%%error_messages-then%%
+
+```c++
+boost/mpl/clear.hpp:29:7: error:
+  implicit instantiation of undefined template
+  'boost::mpl::clear_impl<mpl_::integral_c_tag>::apply<mpl_::int_<1> >'
+    : clear_impl< typename sequence_tag<Sequence>::type >
+      ^
+```
 
 ----
 
-### `std::common_type` : now
+### Error messages: now
 
-%%common_type-now%%
+%%error_messages-now%%
+
+```c++
+boost/hana/fwd/sequence.hpp:602:13: error:
+  static_assert failed "hana::reverse(xs) requires xs to be a Sequence"
+        static_assert(_models<Sequence, typename datatype<Xs>::type>{},
+        ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+error_messages.cpp:19:24:
+  in instantiation of function template specialization
+  'boost::hana::_reverse::operator()<int>' requested here
+auto xs = hana::reverse(1);
+                       ^
+```
 
 ====================
 
@@ -965,33 +1004,32 @@ auto add_const = metafunction<std::add_const>;
 
 ====================
 
-### Case study: indexed sorting
+### Case study: switch any
 
-%%indexed_sort-now-usage1%%
+%%switch_any-now-usage%%
+
+----
+
+### Disclaimer:
+#### Not as good as Sebastian's
 
 ----
 
 ### The beast
 
-%%indexed_sort-now-impl%%
+%%switch_any-now-impl1%%
 
 ----
 
-### With Fusion/MPL ...
+### Processing cases
 
-%%indexed_sort-then-impl%%
-
-----
-
-### Faking the initial sequence: now
-
-%%indexed_sort-now-usage2%%
+%%switch_any-now-impl2%%
 
 ----
 
-### Faking the initial sequence: then
+### Base case
 
-%%indexed_sort-then-usage2%%
+%%switch_any-now-impl3%%
 
 ==============================================================================
 
@@ -1032,13 +1070,69 @@ http://ldionne.com <br>
 http://github.com/ldionne
 </span>
 
-<!--
-TODO:
-- Potential case studies:
-  - tuple_cat
-  - Heterogeneous linear algebra
-  - Boost.Accumulators
--->
+==============================================================================
+
+## Bonus
+
+====================
+
+### Sorting at compile-time: then
+
+%%sorting-then1%%
+
+----
+
+### Sorting at compile-time: then
+
+%%sorting-then2%%
+
+----
+
+### Sorting at compile-time: now
+
+%%sorting-now%%
+
+====================
+
+### Case study: indexed sorting
+
+%%indexed_sort-now-usage1%%
+
+----
+
+### The beast
+
+%%indexed_sort-now-impl%%
+
+----
+
+### With Fusion/MPL ...
+
+%%indexed_sort-then-impl%%
+
+----
+
+### Faking the initial sequence: now
+
+%%indexed_sort-now-usage2%%
+
+----
+
+### Faking the initial sequence: then
+
+%%indexed_sort-then-usage2%%
+
+====================
+
+### `std::common_type` : N3843
+
+%%common_type-N3843%%
+
+----
+
+### `std::common_type` : now
+
+%%common_type-now%%
 
                 </script>
                 </section>

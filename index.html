@@ -343,74 +343,6 @@ static_assert(!has_xxx("abcdef"), "");
 
 ====================
 
-### Sorting at compile-time: then
-
-```cpp
-template <typename Sequence, typename Pred>
-struct sort_impl;
-
-template <typename Sequence, typename Pred>
-struct sort
-  : eval_if<empty<Sequence>,
-      identity<Sequence>,
-      sort_impl<Sequence, Pred>
-  >
-{ };
-```
-
-----
-
-### Sorting at compile-time: then
-
-```cpp
-template <typename Sequence, typename Pred>
-struct sort_impl {
-  using pivot = typename begin<Sequence>::type;
-  using parts = typename partition<
-    iterator_range<typename next<pivot>::type,
-                   typename end<Sequence>::type>
-    , apply2<typename lambda<Pred>::type, _1,
-             typename deref<pivot>::type>
-    , back_inserter<vector<>>
-    , back_inserter<vector<>>
-  >::type;
-
-  using part1 = typename push_back<
-    typename sort<typename parts::first, Pred>::type,
-    typename deref<pivot>::type
-  >::type;
-
-  using part2 = typename sort<typename parts::second, Pred>::type;
-
-  using type = typename insert_range<
-    part1, typename end<part1>::type, part2
-  >::type;
-};
-```
-
-----
-
-### Sorting at compile-time: now
-
-```cpp
-template <typename Xs, typename Pred>
-auto sort(Xs xs, Pred pred) {
-  return eval_if(length(xs) < size_t<2>,
-    lazy(xs),
-    lazy([=](auto xs) {
-      auto pivot = head(xs);
-      auto parts = partition(tail(xs), partial(pred, pivot));
-      return concat(
-        append(sort(second(parts), pred), pivot),
-        sort(first(parts), pivot)
-      );
-    })(xs)
-  );
-}
-```
-
-====================
-
 ### Introspection: then
 
 ```cpp
@@ -453,52 +385,122 @@ int main() {
 
 ====================
 
+### Generating JSON: then
+
+```c++
+// sorry, not going to implement this
+```
+
+----
+
+### Generating JSON: now
+
+```cpp
+struct Person {
+  BOOST_HANA_DEFINE_STRUCT(Person,
+    (std::string, name),
+    (int, age)
+  );
+};
+
+Person joe{"Joe", 30};
+std::cout << to_json(make_tuple(1, 'c', joe));
+```
+
+__Output__:
+```json
+[1, "c", {"name" : "Joe", "age" : 30}]
+```
+
+----
+
+### Handle base types
+
+```cpp
+std::string quote(std::string s) { return "\"" + s + "\""; }
+
+template <typename T>
+auto to_json(T&& x) -> decltype(std::to_string(std::forward<T>(x))) {
+  return std::to_string(std::forward<T>(x));
+}
+
+std::string to_json(char c) { return quote({c}); }
+std::string to_json(std::string s) { return quote(s); }
+```
+
+----
+
+### Handle `Sequences`
+
+```cpp
+template <typename Xs>
+std::enable_if_t<models<Sequence, Xs>(), std::string> to_json(Xs&& xs) {
+  auto json = transform(std::forward<Xs>(xs), [](auto&& x) {
+    return to_json(std::forward<decltype(x)>(x));
+  });
+
+  return "[" + join(std::move(json), ", ") + "]";
+}
+```
+
+----
+
+### Handle `Structs`
+
+```cpp
+template <typename T>
+std::enable_if_t<models<Struct, T>(), std::string> to_json(T&& x) {
+  auto as_tuple = to<Tuple>(std::forward<T>(x));
+
+  auto json = transform(std::move(as_tuple),
+    fuse([](auto name, auto&& member) {
+      return quote(to<char const*>(name)) + " : " +
+                to_json(std::forward<decltype(member)>(member));
+    }));
+
+  return "{" + join(std::move(json), ", ") + "}";
+}
+```
+
+====================
+
 ## Still not convinced?
 ### Here's more
 
 ====================
 
-### `std::common_type` : N3843
+### Error messages: then
 
 ```cpp
-template <typename T, typename U>
-using builtin_common_t = std::decay_t<decltype(
-  true ? std::declval<T>() : std::declval<U>()
-)>;
+using xs = mpl::reverse<mpl::int_<1>>::type;
+```
 
-template <typename, typename ...>
-struct ct { };
-
-template <typename T>
-struct ct<void, T> : std::decay<T> { };
-
-template <typename T, typename U, typename ...V>
-struct ct<void_t<builtin_common_t<T, U>>, T, U, V...>
-  : ct<void, builtin_common_t<T, U>, V...>
-{ };
-
-template <typename ...T>
-struct common_type : ct<void, T...> { };
+```c++
+boost/mpl/clear.hpp:29:7: error:
+  implicit instantiation of undefined template
+  'boost::mpl::clear_impl<mpl_::integral_c_tag>::apply<mpl_::int_<1> >'
+    : clear_impl< typename sequence_tag<Sequence>::type >
+      ^
 ```
 
 ----
 
-### `std::common_type` : now
+### Error messages: now
 
 ```cpp
-template <typename ...>
-auto common_type_impl = nothing;
+auto xs = hana::reverse(1);
+```
 
-template <typename T1, typename ...Tn>
-auto common_type_impl<T1, Tn...> = monadic_fold<Maybe>(
-  tuple_t<Tn...>, type<std::decay_t<T1>>,
-  sfinae([](auto t, auto u) -> decltype(
-    traits::decay(true ? traits::declval(t) : traits::declval(u))
-  ) { return {}; })
-);
-
-template <typename ...T>
-struct common_type : decltype(common_type_impl<T...>) { };
+```c++
+boost/hana/fwd/sequence.hpp:602:13: error:
+  static_assert failed "hana::reverse(xs) requires xs to be a Sequence"
+        static_assert(_models<Sequence, typename datatype<Xs>::type>{},
+        ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+error_messages.cpp:19:24:
+  in instantiation of function template specialization
+  'boost::hana::_reverse::operator()<int>' requested here
+auto xs = hana::reverse(1);
+                       ^
 ```
 
 ====================
@@ -1276,6 +1278,196 @@ auto add_const = metafunction<std::add_const>;
 
 ====================
 
+### Case study: switch any
+
+```cpp
+boost::any a = 3;
+std::string result = switchAny<std::string>(a)(
+    case_<int>([](int i) { return std::to_string(i); })
+  , case_<double>([](double d) { return std::to_string(d); })
+  , empty([] { return "empty"; })
+  , default_([] { return "default"; })
+);
+assert(result == "3");
+```
+
+----
+
+### Disclaimer:
+#### Not as good as Sebastian's
+
+----
+
+### The beast
+
+```cpp
+template <typename Result = void, typename Any>
+auto switchAny(Any& a) {
+  return [&a](auto ...cases_) -> Result {
+    auto cases = hana::make_tuple(cases_...);
+
+    auto default_ = hana::find_if(cases, [](auto const& c) {
+      return c.first == hana::type<_default>;
+    });
+    static_assert(hana::is_just(default_),
+      "switch is missing a default_ case");
+
+    auto rest = hana::filter(cases, [](auto const& c) {
+      return c.first != hana::type<_default>;
+    });
+
+    return hana::unpack(rest, [&](auto& ...rest) {
+      return switchAnyImpl<Result>(a, a.type(), hana::from_just(default_).second, rest...);
+    });
+  };
+}
+```
+
+----
+
+### Processing cases
+
+```cpp
+template <typename Result, typename Any, typename Default, typename Case, typename ...Rest>
+Result switchAnyImpl(Any& a, std::type_index const& t, Default& default_,
+                   Case& case_, Rest& ...rest)
+{
+  using T = typename decltype(+case_.first)::type;
+  if (t == typeid(T)) {
+    return hana::eval_if(hana::type<T> == hana::type<void>,
+      [&](auto _) { return _(case_).second(); },
+      [&](auto _) { return case_.second(*boost::unsafe_any_cast<T>(_(&a))); }
+    );
+  }
+  else
+    return switchAnyImpl<Result>(a, t, default_, rest...);
+}
+```
+
+----
+
+### Base case
+
+```cpp
+template <typename Result, typename Any, typename Default>
+Result switchAnyImpl(Any&, std::type_index const& t, Default& default_) {
+  return default_();
+}
+```
+
+==============================================================================
+
+## My proposal: Hana
+
+- Heterogeneous + type level computations
+- 75+ algorithms
+- 8 heterogeneous containers
+- Improved compile-times
+
+====================
+
+### Working on C++14 compilers
+
+- Clang >= 3.5
+- GCC 5 (almost)
+
+====================
+
+### Available in your next Boost release!
+#### (hopefully)
+
+====================
+
+### Formal review: June 10 - June 24
+
+====================
+
+## Embrace the future
+## Embrace Hana <!-- .element class="fragment fade-in" -->
+
+====================
+
+# Thank you
+
+<span class="fragment fade-in">
+http://ldionne.com <br>
+http://github.com/ldionne
+</span>
+
+==============================================================================
+
+## Bonus
+
+====================
+
+### Sorting at compile-time: then
+
+```cpp
+template <typename Sequence, typename Pred>
+struct sort_impl;
+
+template <typename Sequence, typename Pred>
+struct sort
+  : eval_if<empty<Sequence>,
+      identity<Sequence>,
+      sort_impl<Sequence, Pred>
+  >
+{ };
+```
+
+----
+
+### Sorting at compile-time: then
+
+```cpp
+template <typename Sequence, typename Pred>
+struct sort_impl {
+  using pivot = typename begin<Sequence>::type;
+  using parts = typename partition<
+    iterator_range<typename next<pivot>::type,
+                   typename end<Sequence>::type>
+    , apply2<typename lambda<Pred>::type, _1,
+             typename deref<pivot>::type>
+    , back_inserter<vector<>>
+    , back_inserter<vector<>>
+  >::type;
+
+  using part1 = typename push_back<
+    typename sort<typename parts::first, Pred>::type,
+    typename deref<pivot>::type
+  >::type;
+
+  using part2 = typename sort<typename parts::second, Pred>::type;
+
+  using type = typename insert_range<
+    part1, typename end<part1>::type, part2
+  >::type;
+};
+```
+
+----
+
+### Sorting at compile-time: now
+
+```cpp
+template <typename Xs, typename Pred>
+auto sort(Xs xs, Pred pred) {
+  return eval_if(length(xs) < size_t<2>,
+    lazy(xs),
+    lazy([=](auto xs) {
+      auto pivot = head(xs);
+      auto parts = partition(tail(xs), partial(pred, pivot));
+      return concat(
+        append(sort(second(parts), pred), pivot),
+        sort(first(parts), pivot)
+      );
+    })(xs)
+  );
+}
+```
+
+====================
+
 ### Case study: indexed sorting
 
 ```cpp
@@ -1358,52 +1550,50 @@ int (&b)[2] = fusion::at_c<at_c<IndexMap, 1>::type::value>(s);
 int (&c)[1] = fusion::at_c<at_c<IndexMap, 2>::type::value>(s);
 ```
 
-==============================================================================
-
-## My proposal: Hana
-
-- Heterogeneous + type level computations
-- 75+ algorithms
-- 8 heterogeneous containers
-- Improved compile-times
-
 ====================
 
-### Working on C++14 compilers
+### `std::common_type` : N3843
 
-- Clang >= 3.5
-- GCC 5 (almost)
+```cpp
+template <typename T, typename U>
+using builtin_common_t = std::decay_t<decltype(
+  true ? std::declval<T>() : std::declval<U>()
+)>;
 
-====================
+template <typename, typename ...>
+struct ct { };
 
-### Available in your next Boost release!
-#### (hopefully)
+template <typename T>
+struct ct<void, T> : std::decay<T> { };
 
-====================
+template <typename T, typename U, typename ...V>
+struct ct<void_t<builtin_common_t<T, U>>, T, U, V...>
+  : ct<void, builtin_common_t<T, U>, V...>
+{ };
 
-### Formal review: June 10 - June 24
+template <typename ...T>
+struct common_type : ct<void, T...> { };
+```
 
-====================
+----
 
-## Embrace the future
-## Embrace Hana <!-- .element class="fragment fade-in" -->
+### `std::common_type` : now
 
-====================
+```cpp
+template <typename ...>
+auto common_type_impl = nothing;
 
-# Thank you
+template <typename T1, typename ...Tn>
+auto common_type_impl<T1, Tn...> = monadic_fold<Maybe>(
+  tuple_t<Tn...>, type<std::decay_t<T1>>,
+  sfinae([](auto t, auto u) -> decltype(
+    traits::decay(true ? traits::declval(t) : traits::declval(u))
+  ) { return {}; })
+);
 
-<span class="fragment fade-in">
-http://ldionne.com <br>
-http://github.com/ldionne
-</span>
-
-<!--
-TODO:
-- Potential case studies:
-  - tuple_cat
-  - Heterogeneous linear algebra
-  - Boost.Accumulators
--->
+template <typename ...T>
+struct common_type : decltype(common_type_impl<T...>) { };
+```
 
                 </script>
                 </section>
