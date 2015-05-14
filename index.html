@@ -249,6 +249,24 @@ using pointers = mpl::transform<seq,
 
 ====================
 
+### Note
+
+```c++
+                        std::tuple != mpl::vector
+```
+
+----
+
+### Consider
+
+```c++
+mpl::vector<int, void, char>{} // ok
+
+std::tuple<int, void, char>{} // error: field has incomplete type void
+```
+
+====================
+
 ## Claim
 ### Type-level $\;\subset\;$ heterogeneous <!-- .element class="fragment" -->
 
