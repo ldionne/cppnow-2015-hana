@@ -59,7 +59,7 @@ them load on the first slide.
 
 ====================
 
-### Homogeneous runtime computations (classic)
+### Runtime computations (classic)
 
 ----
 
@@ -93,7 +93,7 @@ std::transform(ints.begin(), ints.end(),
 
 ====================
 
-### Homogeneous `constexpr` computations
+### `constexpr` computations
 
 ----
 
@@ -132,7 +132,7 @@ constexpr std::array<int, 4> facts = transform(ints, factorial);
 
 ====================
 
-### Heterogeneous runtime computations (Fusion)
+### Heterogeneous computations (Fusion)
 
 ----
 
@@ -168,48 +168,6 @@ std::string pi = to_string{}(3.14159);
 fusion::vector<int, std::string, float> seq{1, "abc", 3.4f};
 fusion::vector<std::string, std::string, std::string> strings =
                 fusion::transform(seq, to_string{});
-```
-
-====================
-
-### Heterogeneous `constexpr` computations
-
-----
-
-### Heterogeneous `constexpr` sequences
-
-```c++
-constexpr std::tuple<int, long, float> seq{1, 3l, 3.4f};
-```
-
-----
-
-### Heterogeneous `constexpr` functions
-
-```c++
-struct twice {
-  template <typename T>
-  constexpr auto operator()(T t) const -> decltype(t + t) {
-    return t + t;
-  }
-};
-
-constexpr int i = twice{}(4);
-constexpr double d = twice{}(4.4);
-```
-
-----
-
-### Heterogeneous `constexpr` algorithms
-
-```c++
-template <typename ...T, typename F>
-constexpr auto transform(std::tuple<T...> xs, F f) {
-  // ...
-}
-
-constexpr std::tuple<int, long, float> seq{1, 3l, 3.4f};
-constexpr std::tuple<int, long, float> seq2 = transform(seq, twice{});
 ```
 
 ====================
@@ -252,7 +210,7 @@ using pointers = mpl::transform<seq,
 ### Note
 
 ```c++
-                        std::tuple != mpl::vector
+                    fusion::vector != mpl::vector
 ```
 
 ----
@@ -262,7 +220,8 @@ using pointers = mpl::transform<seq,
 ```c++
 mpl::vector<int, void, char>{} // ok
 
-std::tuple<int, void, char>{} // error: field has incomplete type void
+// error: field has incomplete type void
+fusion::vector<int, void, char>{}
 ```
 
 ====================
@@ -420,8 +379,8 @@ __Output__:
 std::string quote(std::string s) { return "\"" + s + "\""; }
 
 template <typename T>
-auto to_json(T&& x) -> decltype(std::to_string(std::forward<T>(x))) {
-  return std::to_string(std::forward<T>(x));
+auto to_json(T const& x) -> decltype(std::to_string(x)) {
+  return std::to_string(x);
 }
 
 std::string to_json(char c) { return quote({c}); }
@@ -434,9 +393,10 @@ std::string to_json(std::string s) { return quote(s); }
 
 ```cpp
 template <typename Xs>
-std::enable_if_t<models<Sequence, Xs>(), std::string> to_json(Xs&& xs) {
-  auto json = transform(std::forward<Xs>(xs), [](auto&& x) {
-    return to_json(std::forward<decltype(x)>(x));
+  std::enable_if_t<models<Sequence, Xs>(),
+std::string> to_json(Xs const& xs) {
+  auto json = transform(xs, [](auto const& x) {
+    return to_json(x);
   });
 
   return "[" + join(std::move(json), ", ") + "]";
@@ -449,14 +409,12 @@ std::enable_if_t<models<Sequence, Xs>(), std::string> to_json(Xs&& xs) {
 
 ```cpp
 template <typename T>
-std::enable_if_t<models<Struct, T>(), std::string> to_json(T&& x) {
-  auto as_tuple = to<Tuple>(std::forward<T>(x));
-
-  auto json = transform(std::move(as_tuple),
-    fuse([](auto name, auto&& member) {
-      return quote(to<char const*>(name)) + " : " +
-                to_json(std::forward<decltype(member)>(member));
-    }));
+  std::enable_if_t<models<Struct, T>(),
+std::string> to_json(T const& x) {
+  auto json = transform(keys(x), [&](auto name) {
+    auto const& member = at_key(x, name);
+    return quote(to<char const*>(name)) + " : " + to_json(member);
+  });
 
   return "{" + join(std::move(json), ", ") + "}";
 }
@@ -909,6 +867,8 @@ assert(is_pointer(p));
 ```cpp
 template <typename T>
 class Type { /* nothing */ };
+
+Type<int> t{};
 ```
 
 Note:
@@ -1278,11 +1238,11 @@ auto add_const = metafunction<std::add_const>;
 
 ====================
 
-### Case study: switch any
+### Case study: switch for `boost::any`
 
 ```cpp
 boost::any a = 3;
-std::string result = switchAny<std::string>(a)(
+std::string result = switch_<std::string>(a)(
     case_<int>([](int i) { return std::to_string(i); })
   , case_<double>([](double d) { return std::to_string(d); })
   , empty([] { return "empty"; })
@@ -1298,18 +1258,33 @@ assert(result == "3");
 
 ----
 
+### First
+
+```cpp
+template <typename T>
+auto case_ = [](auto f) {
+  return std::make_pair(hana::type<T>, f);
+};
+
+struct _default;
+auto default_ = case_<_default>;
+auto empty = case_<void>;
+```
+
+----
+
 ### The beast
 
 ```cpp
 template <typename Result = void, typename Any>
-auto switchAny(Any& a) {
+auto switch_(Any& a) {
   return [&a](auto ...cases_) -> Result {
     auto cases = hana::make_tuple(cases_...);
 
     auto default_ = hana::find_if(cases, [](auto const& c) {
       return c.first == hana::type<_default>;
     });
-    static_assert(hana::is_just(default_),
+    static_assert(!hana::is_nothing(default_),
       "switch is missing a default_ case");
 
     auto rest = hana::filter(cases, [](auto const& c) {
@@ -1317,7 +1292,7 @@ auto switchAny(Any& a) {
     });
 
     return hana::unpack(rest, [&](auto& ...rest) {
-      return switchAnyImpl<Result>(a, a.type(), hana::from_just(default_).second, rest...);
+      return impl<Result>(a, a.type(), default_->second, rest...);
     });
   };
 }
@@ -1328,19 +1303,24 @@ auto switchAny(Any& a) {
 ### Processing cases
 
 ```cpp
-template <typename Result, typename Any, typename Default, typename Case, typename ...Rest>
-Result switchAnyImpl(Any& a, std::type_index const& t, Default& default_,
-                   Case& case_, Rest& ...rest)
+template <typename Result, typename Any, typename Default,
+          typename Case, typename ...Rest>
+Result impl(Any& a, std::type_index const& t, Default& default_,
+            Case& case_, Rest& ...rest)
 {
-  using T = typename decltype(+case_.first)::type;
+  using T = typename decltype(case_.first)::type;
   if (t == typeid(T)) {
-    return hana::eval_if(hana::type<T> == hana::type<void>,
-      [&](auto _) { return _(case_).second(); },
-      [&](auto _) { return case_.second(*boost::unsafe_any_cast<T>(_(&a))); }
-    );
+    return hana::if_(hana::type<T> == hana::type<void>,
+      [](auto& case_, auto& a) {
+        return case_.second();
+      },
+      [](auto& case_, auto& a) {
+        return case_.second(*boost::unsafe_any_cast<T>(&a));
+      }
+    )(case_, a);
   }
   else
-    return switchAnyImpl<Result>(a, t, default_, rest...);
+    return impl<Result>(a, t, default_, rest...);
 }
 ```
 
@@ -1350,10 +1330,19 @@ Result switchAnyImpl(Any& a, std::type_index const& t, Default& default_,
 
 ```cpp
 template <typename Result, typename Any, typename Default>
-Result switchAnyImpl(Any&, std::type_index const& t, Default& default_) {
+Result impl(Any&, std::type_index const& t, Default& default_) {
   return default_();
 }
 ```
+
+----
+
+### About 70 LOC
+
+----
+
+### And your coworkers could understand
+### (mostly) <!-- .element class="fragment" -->
 
 ==============================================================================
 

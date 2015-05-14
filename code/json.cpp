@@ -23,8 +23,8 @@ std::string join(Xs&& xs, std::string sep) {
 std::string quote(std::string s) { return "\"" + s + "\""; }
 
 template <typename T>
-auto to_json(T&& x) -> decltype(std::to_string(std::forward<T>(x))) {
-  return std::to_string(std::forward<T>(x));
+auto to_json(T const& x) -> decltype(std::to_string(x)) {
+  return std::to_string(x);
 }
 
 std::string to_json(char c) { return quote({c}); }
@@ -33,14 +33,12 @@ std::string to_json(std::string s) { return quote(s); }
 
 // sample(json-Struct)
 template <typename T>
-std::enable_if_t<models<Struct, T>(), std::string> to_json(T&& x) {
-  auto as_tuple = to<Tuple>(std::forward<T>(x));
-
-  auto json = transform(std::move(as_tuple),
-    fuse([](auto name, auto&& member) {
-      return quote(to<char const*>(name)) + " : " +
-                to_json(std::forward<decltype(member)>(member));
-    }));
+  std::enable_if_t<models<Struct, T>(),
+std::string> to_json(T const& x) {
+  auto json = transform(keys(x), [&](auto name) {
+    auto const& member = at_key(x, name);
+    return quote(to<char const*>(name)) + " : " + to_json(member);
+  });
 
   return "{" + join(std::move(json), ", ") + "}";
 }
@@ -48,9 +46,10 @@ std::enable_if_t<models<Struct, T>(), std::string> to_json(T&& x) {
 
 // sample(json-Sequence)
 template <typename Xs>
-std::enable_if_t<models<Sequence, Xs>(), std::string> to_json(Xs&& xs) {
-  auto json = transform(std::forward<Xs>(xs), [](auto&& x) {
-    return to_json(std::forward<decltype(x)>(x));
+  std::enable_if_t<models<Sequence, Xs>(),
+std::string> to_json(Xs const& xs) {
+  auto json = transform(xs, [](auto const& x) {
+    return to_json(x);
   });
 
   return "[" + join(std::move(json), ", ") + "]";

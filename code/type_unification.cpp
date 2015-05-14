@@ -10,6 +10,8 @@
 // sample(type_unification-Type)
 template <typename T>
 class Type { /* nothing */ };
+
+Type<int> t{};
 // end-sample
 
 // sample(type_unification-metafunction)
@@ -26,11 +28,13 @@ constexpr std::true_type is_pointer(Type<T*> const&)
 { return {}; }
 // end-sample
 
+namespace usage {
 // sample(type_unification-usage)
 Type<int> t{};
 auto p = add_pointer(t);
 static_assert(is_pointer(p), "");
 // end-sample
+}
 
 namespace sugar {
 // sample(type_unification-sugar)

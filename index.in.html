@@ -59,7 +59,7 @@ them load on the first slide.
 
 ====================
 
-### Homogeneous runtime computations (classic)
+### Runtime computations (classic)
 
 ----
 
@@ -93,7 +93,7 @@ std::transform(ints.begin(), ints.end(),
 
 ====================
 
-### Homogeneous `constexpr` computations
+### `constexpr` computations
 
 ----
 
@@ -132,7 +132,7 @@ constexpr std::array<int, 4> facts = transform(ints, factorial);
 
 ====================
 
-### Heterogeneous runtime computations (Fusion)
+### Heterogeneous computations (Fusion)
 
 ----
 
@@ -168,48 +168,6 @@ std::string pi = to_string{}(3.14159);
 fusion::vector<int, std::string, float> seq{1, "abc", 3.4f};
 fusion::vector<std::string, std::string, std::string> strings =
                 fusion::transform(seq, to_string{});
-```
-
-====================
-
-### Heterogeneous `constexpr` computations
-
-----
-
-### Heterogeneous `constexpr` sequences
-
-```c++
-constexpr std::tuple<int, long, float> seq{1, 3l, 3.4f};
-```
-
-----
-
-### Heterogeneous `constexpr` functions
-
-```c++
-struct twice {
-  template <typename T>
-  constexpr auto operator()(T t) const -> decltype(t + t) {
-    return t + t;
-  }
-};
-
-constexpr int i = twice{}(4);
-constexpr double d = twice{}(4.4);
-```
-
-----
-
-### Heterogeneous `constexpr` algorithms
-
-```c++
-template <typename ...T, typename F>
-constexpr auto transform(std::tuple<T...> xs, F f) {
-  // ...
-}
-
-constexpr std::tuple<int, long, float> seq{1, 3l, 3.4f};
-constexpr std::tuple<int, long, float> seq2 = transform(seq, twice{});
 ```
 
 ====================
@@ -252,7 +210,7 @@ using pointers = mpl::transform<seq,
 ### Note
 
 ```c++
-                        std::tuple != mpl::vector
+                    fusion::vector != mpl::vector
 ```
 
 ----
@@ -262,7 +220,8 @@ using pointers = mpl::transform<seq,
 ```c++
 mpl::vector<int, void, char>{} // ok
 
-std::tuple<int, void, char>{} // error: field has incomplete type void
+// error: field has incomplete type void
+fusion::vector<int, void, char>{}
 ```
 
 ====================
@@ -1004,7 +963,7 @@ auto add_const = metafunction<std::add_const>;
 
 ====================
 
-### Case study: switch any
+### Case study: switch for `boost::any`
 
 %%switch_any-now-usage%%
 
@@ -1015,21 +974,36 @@ auto add_const = metafunction<std::add_const>;
 
 ----
 
-### The beast
+### First
 
 %%switch_any-now-impl1%%
 
 ----
 
-### Processing cases
+### The beast
 
 %%switch_any-now-impl2%%
 
 ----
 
-### Base case
+### Processing cases
 
 %%switch_any-now-impl3%%
+
+----
+
+### Base case
+
+%%switch_any-now-impl4%%
+
+----
+
+### About 70 LOC
+
+----
+
+### And your coworkers could understand
+### (mostly) <!-- .element class="fragment" -->
 
 ==============================================================================
 
