@@ -3,12 +3,6 @@
 This repository contains my [reveal.js][]-based presentation on Hana for
 C++Now 2015.
 
-## Disclaimer
-The presentation is not finished yet. This should really be a private repo,
-but I only have the free plan on GitHub :-). Don't go around selling the
-punch before the conference if you stumble on this.
-
-
 ## Basic usage
 Go to https://ldionne.github.io/hana-cppnow-2015 or open `index.html` with
 your browser.
