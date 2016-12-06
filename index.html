@@ -1615,19 +1615,12 @@ struct common_type : decltype(common_type_impl<T...>) { };
         <script type="text/javascript" src="http://code.highcharts.com/modules/data.js"></script>
         <script type="text/javascript" src="http://code.highcharts.com/modules/exporting.js"></script>
         <script type="text/javascript" src="js/chart.js"></script>
-        <script type="text/javascript" src="https://cdn.rawgit.com/michael/github/fb54ae3856341ef4bd3acf877ccf24836fc079d9/github.js"></script>
         <script type="text/javascript">
           window.onload = function() {
-            var github = new Github({});
-            var hana = github.getRepo('ldionne', 'hana');
-            hana.getRef('heads/datasets', function(err, sha) {
-              var repo = "https://cdn.rawgit.com/ldionne/hana/" + sha + "/release/clang-3.5.0/";
-
-              $(".benchmark-chart").each(function(index, div) {
-                var dataset = div.getAttribute("data-dataset");
-                $.getJSON(repo + dataset, function(options) {
-                  Hana.initChart($(div), options);
-                });
+            $(".benchmark-chart").each(function(index, div) {
+              var dataset = div.getAttribute("data-dataset");
+              $.getJSON("datasets/" + dataset, function(options) {
+                Hana.initChart($(div), options);
               });
             });
           };
